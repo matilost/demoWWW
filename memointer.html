@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Myśli - Interaktywny Czytnik</title>
+    <style>
+        /* ========== RESET & BASE ========== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0a0e16;
+            --bg-secondary: #151922;
+            --bg-elevated: #1f2530;
+            --text-primary: #e8eaed;
+            --text-secondary: #9ba1a9;
+            --accent-1: #6366f1;
+            --accent-2: #8b5cf6;
+            --accent-3: #ec4899;
+            --accent-4: #10b981;
+            --accent-5: #f59e0b;
+            --line-color: rgba(99, 102, 241, 0.3);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --transition: cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ========== GRAIN TEXTURE ========== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* ========== MAP VIEW ========== */
+        #map-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0e16 0%, #151922 50%, #1a1f2e 100%);
+            overflow: hidden;
+        }
+
+        #map-view::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(99, 102, 241, 0.15), transparent 50%),
+                        radial-gradient(circle at 70% 60%, rgba(139, 92, 246, 0.1), transparent 50%);
+            animation: gradientMove 20s ease-in-out infinite;
+        }
+
+        @keyframes gradientMove {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-10%, -10%); }
+        }
+
+        #map-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: grab;
+        }
+
+        #map-canvas:active {
+            cursor: grabbing;
+        }
+
+        .map-controls {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 100;
+        }
+
+        .map-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            background: rgba(31, 37, 48, 0.8);
+            backdrop-filter: blur(10px);
+            color: var(--text-primary);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 300;
+            transition: all 0.3s var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .map-btn:hover {
+            background: rgba(31, 37, 48, 1);
+            transform: translateY(-2px);
+        }
+
+        .map-btn:focus {
+            outline: 2px solid var(--accent-1);
+            outline-offset: 2px;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(31, 37, 48, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            max-width: 300px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s var(--transition);
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .tooltip h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-1);
+        }
+
+        .tooltip p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* ========== ARTICLE VIEW ========== */
+        #article-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-primary);
+            overflow-y: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s var(--transition);
+        }
+
+        #article-view.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .article-header {
+            position: sticky;
+            top: 0;
+            background: rgba(10, 14, 22, 0.8);
+            backdrop-filter: blur(20px);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent-1);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s var(--transition);
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .back-btn:focus {
+            outline: 2px solid var(--accent-1);
+            outline-offset: 2px;
+        }
+
+        .article-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .article-hero {
+            margin-bottom: 4rem;
+            text-align: center;
+        }
+
+        .article-illustration {
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            margin: 0 auto 2rem;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: transform 0.3s var(--transition);
+        }
+
+        .article-illustration:hover {
+            transform: scale(1.02);
+        }
+
+        .article-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .article-lead {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 3rem;
+        }
+
+        .article-section {
+            margin-bottom: 3rem;
+        }
+
+        .article-section h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .article-section p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .callout {
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 4px solid var(--accent-1);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 8px;
+        }
+
+        .callout p {
+            color: var(--text-primary);
+            font-style: italic;
+            margin: 0;
+        }
+
+        .article-navigation {
+            display: flex;
+            gap: 1rem;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .nav-card {
+            flex: 1;
+            padding: 1.5rem;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s var(--transition);
+            border: 1px solid transparent;
+        }
+
+        .nav-card:hover {
+            border-color: var(--accent-1);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow);
+        }
+
+        .nav-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-1);
+        }
+
+        .nav-card p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* ========== LOADING ========== */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            color: var(--accent-1);
+            z-index: 2000;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .article-title {
+                font-size: 2rem;
+            }
+
+            .article-lead {
+                font-size: 1.125rem;
+            }
+
+            .article-section h2 {
+                font-size: 1.5rem;
+            }
+
+            .article-section p {
+                font-size: 1rem;
+            }
+
+            .article-content {
+                padding: 2rem 1.5rem;
+            }
+
+            .article-navigation {
+                flex-direction: column;
+            }
+
+            .map-controls {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+
+        /* ========== FOCUS STYLES ========== */
+        *:focus-visible {
+            outline: 2px solid var(--accent-1);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-view">
+        <canvas id="map-canvas"></canvas>
+        <div class="map-controls">
+            <button class="map-btn" id="zoom-in" aria-label="Przybliż">+</button>
+            <button class="map-btn" id="zoom-out" aria-label="Oddal">−</button>
+            <button class="map-btn" id="reset-view" aria-label="Zresetuj widok">⟲</button>
+        </div>
+        <div class="tooltip" id="tooltip">
+            <h3></h3>
+            <p></p>
+        </div>
+    </div>
+
+    <div id="article-view">
+        <div class="article-header">
+            <button class="back-btn" id="back-to-map">← Powrót do mapy</button>
+        </div>
+        <div class="article-content" id="article-content"></div>
+    </div>
+
+    <script>
+        // ========== DATA MODEL ==========
+        const articles = [
+            {
+                id: 'wielowymiarowosc',
+                title: 'Wielowymiarowość: intuicje i pęknięcia wyobraźni',
+                tag: 'metafizyka',
+                color: '#6366f1',
+                lead: 'Jak myśleć o wymiarach poza trzema? Jakie intuicje mogą nas prowadzić, a jakie okazują się złudne? To podróż przez matematykę, fizykę i filozofię.',
+                preview: 'Eksploracja granic wyobraźni w kontekście wielowymiarowych przestrzeni.',
+                sections: [
+                    {
+                        title: 'Punkt jako świat',
+                        content: 'Wyobraź sobie istotę żyjącą na linii - jednym wymiarze. Dla niej „lewo" i „prawo" to cały wszechświat. Trudno jej pojąć, że my możemy spojrzeć na jej świat z góry, z drugiego wymiaru. Analogicznie, my żyjemy w trzech wymiarach i próbujemy zrozumieć czwarty, piąty... Matematyka pozwala nam to formalizować, ale czy naprawdę to rozumiemy?'
+                    },
+                    {
+                        title: 'Cienie wyższych wymiarów',
+                        content: 'Hipersześcian (tesserakt) rzutowany na płaszczyznę daje nam dziwny, niemożliwy kształt. To jak cień trójwymiarowego obiektu na ścianie - widzimy tylko projekcję. Nasze zmysły ograniczają nas do trzech wymiarów, ale matematyka i fizyka pokazują, że rzeczywistość może mieć więcej struktur.'
+                    },
+                    {
+                        title: 'Teoria strun i ukryte wymiary',
+                        content: 'W fizyce teoretycznej mówi się o 10 lub 11 wymiarach. Dodatkowe wymiary są „zwinięte" w skali Plancka - tak małej, że nie możemy ich zobaczyć. To fascynujące połączenie abstrakcji matematycznej z próbą opisu rzeczywistości.'
+                    },
+                    {
+                        title: 'Granice wyobraźni',
+                        content: 'Czy możemy naprawdę wyobrazić sobie czwarty wymiar przestrzenny? Prawdopodobnie nie w sposób wizualny. Ale możemy go zrozumieć przez analogie, modele matematyczne i abstrakcyjne myślenie. To pokazuje, że rozumienie nie zawsze wymaga wizualizacji.'
+                    }
+                ],
+                callout: 'Wielowymiarowość to nie tylko abstrakcja - to zaproszenie do myślenia poza granicami naszych zmysłów.',
+                nextArticle: 'notatnik-idei'
+            },
+            {
+                id: 'notatnik-idei',
+                title: 'Notatnik idei: jak rodzi się sens z chaosu',
+                tag: 'praktyka',
+                color: '#10b981',
+                lead: 'Pomysły nie przychodzą w gotowej formie. Rodzą się w chaosie myśli, zapisków, przypadkowych skojarzeń. Jak z tego chaosu wydobyć strukturę?',
+                preview: 'Proces krystalizacji myśli przez systematyczne notowanie i porządkowanie.',
+                sections: [
+                    {
+                        title: 'Chaos jako punkt startowy',
+                        content: 'Dobry notatnik nie wymusza porządku. Pozwala na swobodny przepływ myśli, przypadkowe skojarzenia, niedokończone zdania. To przestrzeń eksperymentu, gdzie pomysły mogą się ze sobą zderzać bez konsekwencji.'
+                    },
+                    {
+                        title: 'Łączenie kropek',
+                        content: 'Sens pojawia się, gdy zaczynamy dostrzegać wzorce. Ta notatka z zeszłego tygodnia nagle rezonuje z tym, co przeczytałeś dziś rano. Dwie niezależne myśli okazują się częścią większej całości. To moment eureki.'
+                    },
+                    {
+                        title: 'System Zettelkasten',
+                        content: 'Niklas Luhmann stworzył system 90,000 połączonych notatek. Każda notatka to autonomiczna myśl, ale prawdziwa moc tkwi w linkach między nimi. To jak mapa myśli, która rośnie organicznie.'
+                    },
+                    {
+                        title: 'Cyfrowe vs analogowe',
+                        content: 'Papier ma swoją magię - spowolnia myślenie, angażuje inaczej mózg. Narzędzia cyfrowe dają elastyczność i możliwość szybkiego wyszukiwania. Najlepsze rozwiązanie? Hybrydowe podejście, gdzie każde medium służy do innego celu.'
+                    },
+                    {
+                        title: 'Rewizja jako odkrywanie',
+                        content: 'Wracanie do starych notatek to nie tylko przypominanie. To odkrywanie na nowo, z nową perspektywą. To, co kiedyś wydawało się błahe, teraz może być kluczem do rozwiązania obecnego problemu.'
+                    }
+                ],
+                callout: 'Najlepsze pomysły nie przychodzą gotowe - rosną z sieci połączeń między zapisanymi myślami.',
+                nextArticle: 'mikrokosmos'
+            },
+            {
+                id: 'mikrokosmos',
+                title: 'Mikrokosmos: opowieść o biurku, lampie i małym lesie grzybowym',
+                tag: 'obraz',
+                color: '#f59e0b',
+                lead: 'Czasem cały świat mieści się w metrze kwadratowym. Historia o tym, jak małe przestrzenie mogą zawierać wielkie światy.',
+                preview: 'Odkrywanie złożoności i piękna w codziennych, małych przestrzeniach.',
+                sections: [
+                    {
+                        title: 'Topografia biurka',
+                        content: 'Moje biurko to krajobraz. Stos książek tworzy góry, kubek z kawą to jezioro, klawiatura to równina. Każdy przedmiot ma swoje miejsce, swoją historię, swój powód bycia właśnie tam. To nie bałagan - to ekosystem.'
+                    },
+                    {
+                        title: 'Lampa jako słońce',
+                        content: 'O zmierzchu, kiedy naturalnego światła ubywa, włączam lampę. To moment transformacji. Biurko staje się wyspą światła w ciemności, intymną przestrzenią odciętą od reszty świata. Lampa nie tylko oświetla - definiuje granice mojego mikrokosmosu.'
+                    },
+                    {
+                        title: 'Mały las grzybowy',
+                        content: 'W kącie biurka, w małym doniczce, rośnie coś, co nazwałem "lasem grzybowym". To terrarium z mchem i drobnymi roślinami. Kiedy je podlewam, obserwuję jak krople wody przemieszczają się przez mikroprzestrzeń. To przypomnienie, że skala jest relatywna - dla mrówki to byłby prawdziwy las.'
+                    },
+                    {
+                        title: 'Szczegóły jako bramy',
+                        content: 'Zwracanie uwagi na detale zmienia percepcję. Rysa na drewnianym blacie staje się rzeką, okruchy chleba od wczorajszej kolacji to głazy. Makrofotografia pokazała nam, że każdy przedmiot zawiera nieskończoną złożoność na mniejszych skalach.'
+                    }
+                ],
+                callout: 'Świat nie jest "tam na zewnątrz" - jest wszędzie, gdzie skierujemy uwagę.',
+                nextArticle: 'sztuka-koncentracji'
+            },
+            {
+                id: 'sztuka-koncentracji',
+                title: 'Sztuka koncentracji: praca głęboka w świecie bodźców',
+                tag: 'psychologia',
+                color: '#8b5cf6',
+                lead: 'Notyfikacje, wiadomości, nieskończone scrollowanie. Jak znaleźć wyspę skupienia w oceanie dystrakcji?',
+                preview: 'Strategie i filozofia głębokiej pracy w epoce ciągłego rozproszenia.',
+                sections: [
+                    {
+                        title: 'Mit multitaskingu',
+                        content: 'Mózg nie pracuje równolegle - przeskakuje między zadaniami. Każde przełączenie kontekstu kosztuje czas i energię poznawczą. "Wielozadaniowość" to w rzeczywistości szybkie, seryjne przełączanie się - i jest niewiarygodnie nieefektywna.'
+                    },
+                    {
+                        title: 'Deep Work - praca głęboka',
+                        content: 'Cal Newport zdefiniował deep work jako zdolność do koncentracji bez rozpraszania na poznawczo wymagającym zadaniu. To rzadka i wartościowa umiejętność. Wymaga celowego wysiłku i odpowiedniego środowiska.'
+                    },
+                    {
+                        title: 'Rytuały i środowisko',
+                        content: 'Koncentracja nie pojawia się na zawołanie. Potrzebuje rytualnych przygotowań: wyłączenia powiadomień, uporządkowania przestrzeni, przygotowania herbaty. Te małe działania sygnalizują mózgowi: "teraz będziemy pracować głęboko".'
+                    },
+                    {
+                        title: 'Flow i jego warunki',
+                        content: 'Stan flow to całkowite zanurzenie w zadaniu. Mihaly Csikszentmihalyi pokazał, że wymaga on balansu: zadanie nie może być ani za łatwe (nuda), ani za trudne (frustracja). Musi być właśnie na granicy naszych możliwości.'
+                    },
+                    {
+                        title: 'Odpoczynek jako część pracy',
+                        content: 'Prawdziwa koncentracja nie może trwać non-stop. Mózg potrzebuje przerw, błądzenia myślami, nudy. To w tych momentach podświadomość przetwarza informacje i rodzi nowe połączenia.'
+                    }
+                ],
+                callout: 'Koncentracja to nie talent - to umiejętność, którą można trenować.',
+                nextArticle: 'mapa-jako-opowiesc'
+            },
+            {
+                id: 'mapa-jako-opowiesc',
+                title: 'Mapa jako opowieść: dlaczego nawigacja też jest narracją',
+                tag: 'narracja',
+                color: '#ec4899',
+                lead: 'Każda mapa opowiada historię. O tym, co twórca uznał za ważne, co pominął, jak widzi świat. Nawigacja to nie tylko odnajdywanie drogi - to interpretacja przestrzeni.',
+                preview: 'Mapy jako narracyjne konstrukcje pełne wyborów i znaczeń.',
+                sections: [
+                    {
+                        title: 'Mapa nie jest terytorium',
+                        content: 'Alfred Korzybski przypomniał nam, że mapa to zawsze uproszczenie, interpretacja, wybór. Co pokazać, a co pominąć? Każda mapa zawiera w sobie punkt widzenia jej twórcy. Nie ma "obiektywnej" mapy - każda niesie narrację.'
+                    },
+                    {
+                        title: 'Mapy mentalne vs przestrzenne',
+                        content: 'Mapa myśli (mind map) to przestrzenna reprezentacja pojęć. Łączy wizualną intuicję z abstrakcyjnymi ideami. Pokazuje, że myślimy nie tylko liniowo - myślimy sieciowo, wielowymiarowo, z centralnym punktem i promieniującymi ścieżkami.'
+                    },
+                    {
+                        title: 'Nawigacja jako aktywny proces',
+                        content: 'Kiedy korzystamy z GPS, jesteśmy bierni - urządzenie mówi nam "skręć w lewo". Kiedy czytamy mapę papierową, aktywnie konstruujemy trasę, zapamiętujemy punkty orientacyjne, budujemy mentalny model przestrzeni. To różnica między byciem prowadzonym a byciem eksploratorem.'
+                    },
+                    {
+                        title: 'Interfejs jako mapa',
+                        content: 'Dobry interfejs cyfrowy działa jak mapa - pokazuje strukturę, relacje, możliwe ścieżki. Nawigacja przez aplikację to opowieść: gdzie jesteśmy, skąd przyszliśmy, dokąd możemy pójść. Design to architektura narracji.'
+                    },
+                    {
+                        title: 'Zagubienie jako odkrycie',
+                        content: 'Niektóre z najlepszych odkryć zdarzają się, gdy się zgubimy. Błądzenie pozwala odkrywać połączenia, które planowa trasa by pominęła. Serendipity wymaga odrobiny chaosu.'
+                    }
+                ],
+                callout: 'Każda mapa to opowieść o tym, jak rozumieć świat - przestrzenny lub pojęciowy.',
+                nextArticle: 'wielowymiarowosc'
+            }
+        ];
+
+        // ========== STATE ==========
+        let currentView = 'map';
+        let currentArticle = null;
+
+        // Map state
+        let canvas, ctx;
+        let nodes = [];
+        let connections = [];
+        let camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let hoveredNode = null;
+        let animationFrame = null;
+        let time = 0;
+
+        // ========== INITIALIZATION ==========
+        function init() {
+            canvas = document.getElementById('map-canvas');
+            ctx = canvas.getContext('2d');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            setupNodes();
+            setupConnections();
+            setupEventListeners();
+            setupRouter();
+
+            animate();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function setupNodes() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(canvas.width, canvas.height) * 0.3;
+
+            articles.forEach((article, i) => {
+                const angle = (i / articles.length) * Math.PI * 2 - Math.PI / 2;
+                nodes.push({
+                    id: article.id,
+                    x: centerX + Math.cos(angle) * radius,
+                    y: centerY + Math.sin(angle) * radius,
+                    baseX: centerX + Math.cos(angle) * radius,
+                    baseY: centerY + Math.sin(angle) * radius,
+                    radius: 60,
+                    color: article.color,
+                    title: article.title,
+                    tag: article.tag,
+                    preview: article.preview,
+                    offset: Math.random() * Math.PI * 2,
+                    phase: Math.random() * Math.PI * 2
+                });
+            });
+        }
+
+        function setupConnections() {
+            nodes.forEach((node, i) => {
+                const nextIndex = (i + 1) % nodes.length;
+                connections.push({
+                    from: node,
+                    to: nodes[nextIndex]
+                });
+
+                // Add some cross-connections
+                if (i < nodes.length - 2) {
+                    const crossIndex = (i + 2) % nodes.length;
+                    connections.push({
+                        from: node,
+                        to: nodes[crossIndex],
+                        isDashed: true
+                    });
+                }
+            });
+        }
+
+        // ========== EVENT LISTENERS ==========
+        function setupEventListeners() {
+            // Map interactions
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('mouseleave', handleMouseUp);
+            canvas.addEventListener('click', handleMapClick);
+            canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+            // Touch support
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleTouchEnd);
+
+            // Controls
+            document.getElementById('zoom-in').addEventListener('click', () => zoomTo(camera.targetZoom * 1.2));
+            document.getElementById('zoom-out').addEventListener('click', () => zoomTo(camera.targetZoom * 0.8));
+            document.getElementById('reset-view').addEventListener('click', resetCamera);
+            document.getElementById('back-to-map').addEventListener('click', () => navigateTo('map'));
+
+            // Keyboard navigation
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleMouseDown(e) {
+            isDragging = true;
+            dragStart = { x: e.clientX - camera.x, y: e.clientY - camera.y };
+        }
+
+        function handleMouseMove(e) {
+            if (isDragging) {
+                camera.x = e.clientX - dragStart.x;
+                camera.y = e.clientY - dragStart.y;
+            }
+
+            // Check hover
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - camera.x) / camera.zoom;
+            const mouseY = (e.clientY - rect.top - camera.y) / camera.zoom;
+
+            hoveredNode = null;
+            nodes.forEach(node => {
+                const dx = mouseX - node.x;
+                const dy = mouseY - node.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < node.radius) {
+                    hoveredNode = node;
+                }
+            });
+
+            updateTooltip(e);
+        }
+
+        function handleMouseUp() {
+            isDragging = false;
+        }
+
+        function handleMapClick(e) {
+            if (hoveredNode && !isDragging) {
+                navigateTo(`article/${hoveredNode.id}`);
+            }
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            zoomTo(camera.targetZoom * delta);
+        }
+
+        let touchStart = null;
+        function handleTouchStart(e) {
+            if (e.touches.length === 1) {
+                touchStart = { x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y };
+                isDragging = true;
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (e.touches.length === 1 && isDragging) {
+                camera.x = e.touches[0].clientX - touchStart.x;
+                camera.y = e.touches[0].clientY - touchStart.y;
+            }
+        }
+
+        function handleTouchEnd() {
+            isDragging = false;
+            touchStart = null;
+        }
+
+        function handleKeyDown(e) {
+            if (currentView === 'map') {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    // Focus navigation through nodes
+                }
+            }
+        }
+
+        function zoomTo(targetZoom) {
+            camera.targetZoom = Math.max(0.5, Math.min(2, targetZoom));
+        }
+
+        function resetCamera() {
+            camera.x = 0;
+            camera.y = 0;
+            camera.targetZoom = 1;
+        }
+
+        function updateTooltip(e) {
+            const tooltip = document.getElementById('tooltip');
+            if (hoveredNode) {
+                tooltip.querySelector('h3').textContent = hoveredNode.tag;
+                tooltip.querySelector('p').textContent = hoveredNode.preview;
+                tooltip.style.left = e.clientX + 20 + 'px';
+                tooltip.style.top = e.clientY + 20 + 'px';
+                tooltip.classList.add('visible');
+            } else {
+                tooltip.classList.remove('visible');
+            }
+        }
+
+        // ========== ANIMATION ==========
+        function animate() {
+            time += 0.016;
+
+            // Update camera
+            camera.zoom += (camera.targetZoom - camera.zoom) * 0.1;
+
+            // Update node positions (breathing effect)
+            nodes.forEach(node => {
+                const drift = Math.sin(time * 0.5 + node.offset) * 3;
+                const drift2 = Math.cos(time * 0.7 + node.phase) * 2;
+                node.x = node.baseX + drift;
+                node.y = node.baseY + drift2;
+            });
+
+            // Render
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.zoom, camera.zoom);
+
+            drawConnections();
+            drawNodes();
+
+            ctx.restore();
+
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function drawConnections() {
+            connections.forEach(conn => {
+                ctx.beginPath();
+                ctx.moveTo(conn.from.x, conn.from.y);
+
+                // Bezier curve
+                const midX = (conn.from.x + conn.to.x) / 2;
+                const midY = (conn.from.y + conn.to.y) / 2;
+                const offset = Math.sin(time * 0.5) * 20;
+                ctx.quadraticCurveTo(midX + offset, midY + offset, conn.to.x, conn.to.y);
+
+                ctx.strokeStyle = conn.isDashed ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.3)';
+                ctx.lineWidth = conn.isDashed ? 1 : 2;
+                if (conn.isDashed) {
+                    ctx.setLineDash([5, 5]);
+                } else {
+                    ctx.setLineDash([]);
+                }
+                ctx.stroke();
+            });
+        }
+
+        function drawNodes() {
+            nodes.forEach(node => {
+                const isHovered = node === hoveredNode;
+                const scale = isHovered ? 1.1 : 1;
+                const radius = node.radius * scale;
+
+                // Glow
+                if (isHovered) {
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = node.color;
+                } else {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = node.color;
+                }
+
+                // Circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+                const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius);
+                gradient.addColorStop(0, node.color + 'dd');
+                gradient.addColorStop(1, node.color + '44');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Border
+                ctx.strokeStyle = node.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.shadowBlur = 0;
+
+                // Icon/Illustration
+                drawNodeIcon(node);
+
+                // Tag
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.tag, node.x, node.y + radius + 20);
+            });
+        }
+
+        function drawNodeIcon(node) {
+            ctx.save();
+            ctx.translate(node.x, node.y);
+
+            // Simple geometric shapes based on article
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+
+            const size = 25;
+            switch(node.id) {
+                case 'wielowymiarowosc':
+                    // Cube/Tesseract hint
+                    drawCube(size);
+                    break;
+                case 'notatnik-idei':
+                    // Network/nodes
+                    drawNetwork(size);
+                    break;
+                case 'mikrokosmos':
+                    // Tree/organic
+                    drawTree(size);
+                    break;
+                case 'sztuka-koncentracji':
+                    // Target/focus
+                    drawTarget(size);
+                    break;
+                case 'mapa-jako-opowiesc':
+                    // Map/paths
+                    drawMapIcon(size);
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        function drawCube(size) {
+            ctx.beginPath();
+            ctx.moveTo(-size, -size * 0.5);
+            ctx.lineTo(size, -size * 0.5);
+            ctx.lineTo(size, size * 0.5);
+            ctx.lineTo(-size, size * 0.5);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.5, -size);
+            ctx.lineTo(size * 0.5, -size);
+            ctx.lineTo(size * 0.5, size);
+            ctx.lineTo(-size * 0.5, size);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-size, -size * 0.5);
+            ctx.lineTo(-size * 0.5, -size);
+            ctx.moveTo(size, -size * 0.5);
+            ctx.lineTo(size * 0.5, -size);
+            ctx.moveTo(size, size * 0.5);
+            ctx.lineTo(size * 0.5, size);
+            ctx.moveTo(-size, size * 0.5);
+            ctx.lineTo(-size * 0.5, size);
+            ctx.stroke();
+        }
+
+        function drawNetwork(size) {
+            const points = [
+                {x: 0, y: -size},
+                {x: size, y: 0},
+                {x: 0, y: size},
+                {x: -size, y: 0}
+            ];
+
+            points.forEach((p1, i) => {
+                ctx.beginPath();
+                ctx.arc(p1.x, p1.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                points.forEach((p2, j) => {
+                    if (i < j) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+        }
+
+        function drawTree(size) {
+            ctx.beginPath();
+            ctx.moveTo(0, size);
+            ctx.lineTo(0, -size * 0.5);
+            ctx.lineTo(-size * 0.5, -size);
+            ctx.moveTo(0, -size * 0.5);
+            ctx.lineTo(size * 0.5, -size);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-size * 0.7, -size * 0.3);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(size * 0.7, -size * 0.3);
+            ctx.stroke();
+        }
+
+        function drawTarget(size) {
+            for (let i = 1; i <= 3; i++) {
+                ctx.beginPath();
+                ctx.arc(0, 0, (size / 3) * i, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        function drawMapIcon(size) {
+            ctx.beginPath();
+            ctx.moveTo(-size, -size * 0.5);
+            ctx.quadraticCurveTo(0, -size, size, -size * 0.5);
+            ctx.moveTo(-size * 0.7, 0);
+            ctx.quadraticCurveTo(0, size * 0.5, size * 0.7, 0);
+            ctx.moveTo(-size, size * 0.7);
+            ctx.lineTo(size, size * 0.7);
+            ctx.stroke();
+        }
+
+        // ========== ROUTING ==========
+        function setupRouter() {
+            window.addEventListener('hashchange', handleRoute);
+            handleRoute();
+        }
+
+        function handleRoute() {
+            const hash = window.location.hash.slice(1) || 'map';
+            const [view, id] = hash.split('/');
+
+            if (view === 'article' && id) {
+                showArticle(id);
+            } else {
+                showMap();
+            }
+        }
+
+        function navigateTo(path) {
+            window.location.hash = path;
+        }
+
+        function showMap() {
+            currentView = 'map';
+            document.getElementById('map-view').style.display = 'block';
+            document.getElementById('article-view').classList.remove('visible');
+            setTimeout(() => {
+                document.getElementById('article-view').style.display = 'none';
+            }, 500);
+        }
+
+        function showArticle(id) {
+            const article = articles.find(a => a.id === id);
+            if (!article) {
+                navigateTo('map');
+                return;
+            }
+
+            currentView = 'article';
+            currentArticle = article;
+
+            document.getElementById('article-view').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('article-view').classList.add('visible');
+            }, 10);
+
+            renderArticle(article);
+            document.getElementById('map-view').style.display = 'none';
+        }
+
+        // ========== ARTICLE RENDERING ==========
+        function renderArticle(article) {
+            const content = document.getElementById('article-content');
+
+            const illustration = generateIllustration(article);
+            const nextArticle = articles.find(a => a.id === article.nextArticle);
+
+            content.innerHTML = `
+                <div class="article-hero">
+                    <div class="article-illustration" onclick="animateIllustration('${article.id}')">
+                        ${illustration}
+                    </div>
+                    <h1 class="article-title">${article.title}</h1>
+                    <p class="article-lead">${article.lead}</p>
+                </div>
+
+                ${article.sections.map(section => `
+                    <div class="article-section">
+                        <h2>${section.title}</h2>
+                        <p>${section.content}</p>
+                    </div>
+                `).join('')}
+
+                <div class="callout">
+                    <p>${article.callout}</p>
+                </div>
+
+                <div class="article-navigation">
+                    <div class="nav-card" onclick="navigateTo('map')">
+                        <h3>← Powrót do mapy</h3>
+                        <p>Wróć do widoku wszystkich wątków</p>
+                    </div>
+                    ${nextArticle ? `
+                        <div class="nav-card" onclick="navigateTo('article/${nextArticle.id}')">
+                            <h3>Następny wątek →</h3>
+                            <p>${nextArticle.title}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            content.scrollTop = 0;
+        }
+
+        function generateIllustration(article) {
+            const illustrations = {
+                'wielowymiarowosc': `
+                    <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" id="ill-${article.id}">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.4" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="600" height="300" fill="url(#grad1)"/>
+                        <g class="cube-group" transform="translate(300, 150)">
+                            <polygon points="-80,-40 0,-80 80,-40 0,0" fill="rgba(255,255,255,0.2)" stroke="#fff" stroke-width="2"/>
+                            <polygon points="-80,-40 -80,40 0,80 0,0" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="2"/>
+                            <polygon points="80,-40 80,40 0,80 0,0" fill="rgba(255,255,255,0.15)" stroke="#fff" stroke-width="2"/>
+                            <polygon points="-40,-60 20,-90 100,-50 40,-20" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                            <polygon points="-40,-60 -40,20 40,60 40,-20" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                        </g>
+                    </svg>
+                `,
+                'notatnik-idei': `
+                    <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" id="ill-${article.id}">
+                        <defs>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#34d399;stop-opacity:0.4" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="600" height="300" fill="url(#grad2)"/>
+                        <g class="network-group">
+                            ${Array.from({length: 8}, (_, i) => {
+                                const angle = (i / 8) * Math.PI * 2;
+                                const x = 300 + Math.cos(angle) * 100;
+                                const y = 150 + Math.sin(angle) * 80;
+                                return `
+                                    <circle cx="${x}" cy="${y}" r="8" fill="#fff" opacity="0.8"/>
+                                    <line x1="300" y1="150" x2="${x}" y2="${y}" stroke="#fff" stroke-width="1.5" opacity="0.3"/>
+                                `;
+                            }).join('')}
+                            <circle cx="300" cy="150" r="15" fill="#fff" opacity="0.9"/>
+                        </g>
+                    </svg>
+                `,
+                'mikrokosmos': `
+                    <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" id="ill-${article.id}">
+                        <defs>
+                            <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.4" />
+                            </linearGradient>
+                            <radialGradient id="light">
+                                <stop offset="0%" style="stop-color:#fff;stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#fff;stop-opacity:0" />
+                            </radialGradient>
+                        </defs>
+                        <rect width="600" height="300" fill="url(#grad3)"/>
+                        <circle cx="450" cy="80" r="60" fill="url(#light)" opacity="0.6" class="lamp-glow"/>
+                        <rect x="200" y="200" width="200" height="80" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="2" rx="4"/>
+                        <circle cx="250" cy="190" r="4" fill="#34d399"/>
+                        <circle cx="280" cy="185" r="3" fill="#34d399"/>
+                        <circle cx="270" cy="195" r="5" fill="#10b981"/>
+                    </svg>
+                `,
+                'sztuka-koncentracji': `
+                    <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" id="ill-${article.id}">
+                        <defs>
+                            <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.4" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="600" height="300" fill="url(#grad4)"/>
+                        <g class="focus-rings" transform="translate(300, 150)">
+                            ${[60, 90, 120, 150].map((r, i) => `
+                                <circle cx="0" cy="0" r="${r}" fill="none" stroke="#fff"
+                                    stroke-width="2" opacity="${0.6 - i * 0.15}"
+                                    class="ring ring-${i}"/>
+                            `).join('')}
+                            <circle cx="0" cy="0" r="20" fill="#fff" opacity="0.9"/>
+                        </g>
+                    </svg>
+                `,
+                'mapa-jako-opowiesc': `
+                    <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg" id="ill-${article.id}">
+                        <defs>
+                            <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#f472b6;stop-opacity:0.4" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="600" height="300" fill="url(#grad5)"/>
+                        <g class="path-group">
+                            <path d="M 100 150 Q 200 100 300 150 T 500 150"
+                                stroke="#fff" stroke-width="3" fill="none" opacity="0.6"
+                                stroke-dasharray="10,5"/>
+                            <circle cx="100" cy="150" r="8" fill="#fff"/>
+                            <circle cx="300" cy="150" r="8" fill="#fff"/>
+                            <circle cx="500" cy="150" r="8" fill="#fff"/>
+                            <text x="100" y="180" fill="#fff" font-size="12" text-anchor="middle">Start</text>
+                            <text x="300" y="120" fill="#fff" font-size="12" text-anchor="middle">Węzeł</text>
+                            <text x="500" y="180" fill="#fff" font-size="12" text-anchor="middle">Cel</text>
+                        </g>
+                    </svg>
+                `
+            };
+
+            return illustrations[article.id] || illustrations['wielowymiarowosc'];
+        }
+
+        function animateIllustration(id) {
+            const svg = document.getElementById(`ill-${id}`);
+            if (!svg) return;
+
+            // Different animations per article
+            switch(id) {
+                case 'wielowymiarowosc':
+                    const cubeGroup = svg.querySelector('.cube-group');
+                    if (cubeGroup) {
+                        cubeGroup.style.transition = 'transform 1s cubic-bezier(0.4, 0.0, 0.2, 1)';
+                        cubeGroup.style.transform = 'translate(300px, 150px) rotateY(180deg) scale(1.1)';
+                        setTimeout(() => {
+                            cubeGroup.style.transform = 'translate(300px, 150px)';
+                        }, 1000);
+                    }
+                    break;
+
+                case 'notatnik-idei':
+                    const circles = svg.querySelectorAll('.network-group circle');
+                    circles.forEach((circle, i) => {
+                        setTimeout(() => {
+                            circle.style.transition = 'r 0.5s';
+                            const originalR = circle.getAttribute('r');
+                            circle.setAttribute('r', parseFloat(originalR) * 1.5);
+                            setTimeout(() => {
+                                circle.setAttribute('r', originalR);
+                            }, 500);
+                        }, i * 100);
+                    });
+                    break;
+
+                case 'mikrokosmos':
+                    const lampGlow = svg.querySelector('.lamp-glow');
+                    if (lampGlow) {
+                        lampGlow.style.transition = 'opacity 1s';
+                        lampGlow.style.opacity = '1';
+                        setTimeout(() => {
+                            lampGlow.style.opacity = '0.6';
+                        }, 1000);
+                    }
+                    break;
+
+                case 'sztuka-koncentracji':
+                    const rings = svg.querySelectorAll('.ring');
+                    rings.forEach((ring, i) => {
+                        setTimeout(() => {
+                            ring.style.transition = 'r 1s, opacity 1s';
+                            const originalR = ring.getAttribute('r');
+                            ring.setAttribute('r', parseFloat(originalR) * 1.2);
+                            ring.style.opacity = '1';
+                            setTimeout(() => {
+                                ring.setAttribute('r', originalR);
+                                ring.style.opacity = 0.6 - i * 0.15;
+                            }, 1000);
+                        }, i * 150);
+                    });
+                    break;
+
+                case 'mapa-jako-opowiesc':
+                    const path = svg.querySelector('.path-group path');
+                    if (path) {
+                        const length = path.getTotalLength();
+                        path.style.strokeDasharray = length;
+                        path.style.strokeDashoffset = length;
+                        path.style.transition = 'stroke-dashoffset 2s ease-in-out';
+                        setTimeout(() => {
+                            path.style.strokeDashoffset = '0';
+                        }, 100);
+                    }
+                    break;
+            }
+        }
+
+        // ========== START ==========
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

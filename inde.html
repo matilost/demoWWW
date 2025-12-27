@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wielowymiarowość – Interaktywne doświadczenie</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0d0d0d;
+            --bg-darker: #050505;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --text-dim: #666666;
+            --accent: #6fa3ef;
+            --accent-bright: #8fb9f5;
+            --accent-dim: rgba(111, 163, 239, 0.2);
+            --gold: #d4af37;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Crimson Text', Georgia, serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+
+        /* Canvas */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Intro Screen */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.8s ease;
+        }
+
+        #intro-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #intro-screen h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            background: linear-gradient(45deg, var(--accent), var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 1s ease;
+        }
+
+        #intro-screen .intro-text {
+            max-width: 700px;
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            padding: 0 2rem;
+            animation: fadeInUp 1s ease 0.2s backwards;
+        }
+
+        #intro-screen .start-hint {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            animation: fadeInUp 1s ease 0.4s backwards;
+        }
+
+        #intro-screen .start-hint kbd {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            margin: 0 0.3rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-family: monospace;
+            color: var(--accent);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Sidebar Article */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100%;
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid var(--border);
+            z-index: 100;
+            overflow-y: auto;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 2rem;
+        }
+
+        /* Custom scrollbar for sidebar */
+        #sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
+            background: var(--accent-dim);
+            border-radius: 4px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        #sidebar.open {
+            right: 0;
+        }
+
+        #sidebar-toggle {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: rgba(13, 13, 13, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.8rem 1.5rem;
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            z-index: 101;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        #sidebar-toggle:hover {
+            background: rgba(13, 13, 13, 0.95);
+            color: var(--accent);
+            border-color: var(--accent-dim);
+        }
+
+        #sidebar h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+        }
+
+        #sidebar h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            margin: 2rem 0 1rem;
+            color: var(--gold);
+            letter-spacing: 0.05em;
+        }
+
+        #sidebar p {
+            margin-bottom: 1.2rem;
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            text-align: justify;
+        }
+
+        #sidebar .close-btn {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sidebar .close-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-dim);
+        }
+
+        /* Discovery Modal */
+        .discovery-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            max-width: 650px;
+            width: 90%;
+            max-height: 85vh;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(13, 13, 13, 0.98) 0%, rgba(26, 26, 46, 0.98) 100%);
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar for modals */
+        .discovery-modal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .discovery-modal::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .discovery-modal::-webkit-scrollbar-thumb {
+            background: var(--accent-dim);
+            border-radius: 4px;
+        }
+
+        .discovery-modal::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        .discovery-modal.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .discovery-modal h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent-bright);
+            letter-spacing: 0.1em;
+            text-align: center;
+            animation: shimmer 2s ease infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .discovery-modal .shape-icon {
+            text-align: center;
+            font-size: 4rem;
+            margin: 1rem 0;
+            color: var(--gold);
+        }
+
+        .discovery-modal p {
+            margin-bottom: 1.2rem;
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .discovery-modal .continue-hint {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .discovery-modal .continue-hint kbd {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            margin: 0 0.3rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-family: monospace;
+            color: var(--accent);
+        }
+
+        .modal-ok-btn {
+            display: block;
+            margin: 2rem auto 0;
+            padding: 0.8rem 3rem;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .modal-ok-btn:hover {
+            background: var(--accent-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(111, 163, 239, 0.3);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 199;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Status Indicator */
+        #status-indicator {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(13, 13, 13, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border);
+            padding: 1rem 2rem;
+            text-align: center;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #status-indicator.visible {
+            opacity: 1;
+        }
+
+        #status-indicator .label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.3rem;
+        }
+
+        #status-indicator .current-shape {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        #status-indicator .progress {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        /* Instructions */
+        #instructions {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            max-width: 300px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #instructions.visible {
+            opacity: 0.7;
+        }
+
+        #instructions kbd {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            margin: 0 0.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            #sidebar {
+                width: 100%;
+                right: -100%;
+            }
+            
+            #sidebar-toggle {
+                top: 1rem;
+                right: 1rem;
+                padding: 0.6rem 1.2rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #intro-screen h1 {
+                font-size: 2rem;
+            }
+
+            #intro-screen .intro-text {
+                font-size: 1rem;
+            }
+
+            .discovery-modal {
+                padding: 2rem;
+                width: 95%;
+            }
+
+            .discovery-modal h2 {
+                font-size: 1.5rem;
+            }
+
+            #instructions {
+                display: none;
+            }
+
+            #status-indicator {
+                bottom: 1rem;
+                padding: 0.8rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Article Screen (Start) -->
+    <div id="intro-screen" style="overflow-y: auto; max-height: 100vh;">
+        <div style="max-width: 800px; margin: 0 auto; padding: 4rem 2rem;">
+            
+            <!-- Decorative header -->
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin-bottom: 2rem;"></div>
+                <h1 style="font-family: 'Cinzel', serif; font-size: 3rem; margin-bottom: 1rem; font-weight: 600; letter-spacing: 0.15em; background: linear-gradient(45deg, var(--accent), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">WIELOWYMIAROWOŚĆ</h1>
+                <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin-top: 2rem;"></div>
+            </div>
+
+            <!-- Article content - PEŁNY tekst użytkownika -->
+            <article style="font-size: 1.1rem; line-height: 1.9; color: var(--text-secondary);">
+                
+                <p style="margin-bottom: 1.5rem;">Koncepcja wielowymiarowości — wykraczającej poza nasze standardowe, graficzne rozumienie świata — niemal zawsze wydaje się abstrakcyjna. Gdy myślimy o wymiarach, zwykle zatrzymujemy się na tym, co potrafimy sobie wyobrazić wizualnie: dwóch, trzech osiach przestrzeni, ewentualnie czasie jako czymś, co płynie liniowo. Wszystko poza tym szybko zaczyna przypominać filozofię, metafizykę albo czyste spekulacje.</p>
+
+                <p style="margin-bottom: 1.5rem;">A jednak pewne doświadczenia — intelektualne, emocjonalne, a czasem po prostu życiowe — podpowiadają, że analogia wymiarów może sięgać znacznie dalej. Że można ją odnaleźć nie tylko w geometrii, ale również w pojęciach, w znaczeniach, w relacjach, a nawet w uczuciach. Jakby rzeczywistość na każdym poziomie miała swoją „głębię", której nie da się uchwycić jednym spojrzeniem.</p>
+
+                <h3 style="font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); margin: 2.5rem 0 1.5rem; letter-spacing: 0.05em;">Próby opisu</h3>
+
+                <p style="margin-bottom: 1.5rem;">Kiedy zaczynamy patrzeć na świat w ten sposób — wielowymiarowo — bardzo szybko okazuje się, że zaczyna on wymykać się naszym próbom jednoznacznego opisu. Coś jest albo nie jest. Jest takie albo inne. Nadajemy znaczenia poprzez rozróżnienia, granice, przeciwieństwa. Nawet jeśli różne sposoby opisu są mniej lub bardziej precyzyjne, ich fundament pozostaje podobny: porządkowanie rzeczywistości poprzez dzielenie jej na części.</p>
+
+                <p style="margin-bottom: 1.5rem;">A mimo to, gdy próbujemy dotknąć istoty jakiegoś doświadczenia — sensu przeżycia, natury emocji, znaczenia sytuacji — szybko czujemy, jak trudno jest powiedzieć, jakie coś naprawdę jest. Jakby każda próba uchwycenia całości kończyła się tylko częściowym trafieniem.</p>
+
+                <h3 style="font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); margin: 2.5rem 0 1.5rem; letter-spacing: 0.05em;">Sprzeczności</h3>
+
+                <p style="margin-bottom: 1.5rem;">Podobnie dzieje się w świecie emocji i myśli. Możemy odczuwać sprzeczne stany jednocześnie. Coś może być dla nas dobre i trudne, prawdziwe i niejednoznaczne, budujące i bolesne zarazem. Te sprzeczności często próbujemy rozwiązać, ale być może one nie są błędem — być może są naturalną konsekwencją patrzenia na wielowymiarową rzeczywistość z ograniczonej perspektywy.</p>
+
+                <!-- CTA button w połowie tekstu -->
+                <div style="text-align: center; margin: 3rem 0; padding: 2rem 0;">
+                    <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--accent-dim), transparent); margin-bottom: 2rem;"></div>
+                    <button id="start-btn" style="background: var(--accent); border: none; color: white; padding: 1.2rem 3rem; font-size: 1rem; cursor: pointer; font-family: 'Cinzel', serif; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.15em; box-shadow: 0 4px 20px rgba(111, 163, 239, 0.3);">Przejdź do eksperymentu</button>
+                    <p style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-dim);">lub naciśnij <kbd style="display: inline-block; padding: 0.2rem 0.6rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 3px; font-family: monospace; color: var(--accent);">Enter</kbd></p>
+                    <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--accent-dim), transparent); margin-top: 2rem;"></div>
+                </div>
+
+                <p style="margin-bottom: 1.5rem;">Często mówimy wtedy, że „świat nie jest czarno-biały". A przecież czarny i biały istnieją. Widzimy je. Skąd więc to poczucie, że coś się nie zgadza? Być może problem nie leży w samych kolorach, ale w liczbie wymiarów, którymi próbujemy opisać to, co widzimy.</p>
+
+                <h3 style="font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); margin: 2.5rem 0 1.5rem; letter-spacing: 0.05em;">Analogia</h3>
+
+                <p style="margin-bottom: 1.5rem;">Dlatego pomocna staje się analogia zejścia do niższego wymiaru. Trójwymiarowy obiekt obserwowany z perspektywy dwuwymiarowej może wyglądać zupełnie różnie. W zależności od kąta „rzutu" może sprawiać wrażenie, że jest innym obiektem, że się zmienia, że przechodzi z jednej formy w drugą. Tymczasem z perspektywy pełnego trójwymiaru nic się nie zmienia — to wciąż ten sam obiekt, oglądany jedynie z różnych, ograniczonych punktów widzenia.</p>
+
+                <p style="margin-bottom: 1.5rem;">I to prowadzi do pytania, które trudno zignorować.</p>
+
+                <h3 style="font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); margin: 2.5rem 0 1.5rem; letter-spacing: 0.05em;">Pytania</h3>
+
+                <p style="margin-bottom: 1.5rem;">Skoro mamy namacalny dowód na to, że obiekt trójwymiarowy, widziany w dwóch wymiarach, może wyglądać skrajnie różnie — do tego stopnia, że sprawia wrażenie zupełnie innych, niepowiązanych ze sobą form — to co, jeśli wymiarów istnieje znacznie więcej?</p>
+
+                <p style="margin-bottom: 1.5rem;">Co, jeśli to, co postrzegamy jako sprzeczne, niezgodne albo wzajemnie się wykluczające, jest jedynie efektem patrzenia na coś znacznie bogatszego z bardzo wąskiego wycinka?</p>
+                
+                <p style="margin-bottom: 1.5rem;">Co, jeśli nasze „różne prawdy" są po prostu różnymi projekcjami tej samej całości?</p>
+
+                <p style="margin-bottom: 3rem;">A co, jeśli my sami — tak pewni tego, co widzimy — po prostu nie jesteśmy w stanie widzieć wystarczająco szeroko?</p>
+
+            </article>
+
+            <!-- Decorative footer -->
+            <div style="text-align: center; margin-top: 4rem;">
+                <div style="height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent);"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+
+    <!-- Sidebar Toggle -->
+    <button id="sidebar-toggle">Czytaj Pełny Artykuł</button>
+
+    <!-- Sidebar with Article -->
+    <div id="sidebar">
+        <button class="close-btn">&times;</button>
+        <h2>Wielowymiarowość</h2>
+        
+        <p>Koncepcja wielowymiarowości — wykraczającej poza nasze standardowe, graficzne rozumienie świata — niemal zawsze wydaje się abstrakcyjna. Gdy myślimy o wymiarach, zwykle zatrzymujemy się na tym, co potrafimy sobie wyobrazić wizualnie: dwóch, trzech osiach przestrzeni, ewentualnie czasie jako czymś, co płynie liniowo. Wszystko poza tym szybko zaczyna przypominać filozofię, metafizykę albo czyste spekulacje.</p>
+        
+        <p>A jednak pewne doświadczenia — intelektualne, emocjonalne, a czasem po prostu życiowe — podpowiadają, że analogia wymiarów może sięgać znacznie dalej. Że można ją odnaleźć nie tylko w geometrii, ale również w pojęciach, w znaczeniach, w relacjach, a nawet w uczuciach. Jakby rzeczywistość na każdym poziomie miała swoją „głębię", której nie da się uchwycić jednym spojrzeniem.</p>
+        
+        <h3>Próby opisu</h3>
+        
+        <p>Kiedy zaczynamy patrzeć na świat w ten sposób — wielowymiarowo — bardzo szybko okazuje się, że zaczyna on wymykać się naszym próbom jednoznacznego opisu. Coś jest albo nie jest. Jest takie albo inne. Nadajemy znaczenia poprzez rozróżnienia, granice, przeciwieństwa. Nawet jeśli różne sposoby opisu są mniej lub bardziej precyzyjne, ich fundament pozostaje podobny: porządkowanie rzeczywistości poprzez dzielenie jej na części.</p>
+        
+        <p>A mimo to, gdy próbujemy dotknąć istoty jakiegoś doświadczenia — sensu przeżycia, natury emocji, znaczenia sytuacji — szybko czujemy, jak trudno jest powiedzieć, jakie coś naprawdę jest. Jakby każda próba uchwycenia całości kończyła się tylko częściowym trafieniem.</p>
+        
+        <h3>Sprzeczności</h3>
+        
+        <p>Podobnie dzieje się w świecie emocji i myśli. Możemy odczuwać sprzeczne stany jednocześnie. Coś może być dla nas dobre i trudne, prawdziwe i niejednoznaczne, budujące i bolesne zarazem. Te sprzeczności często próbujemy rozwiązać, ale być może one nie są błędem — być może są naturalną konsekwencją patrzenia na wielowymiarową rzeczywistość z ograniczonej perspektywy.</p>
+        
+        <p>Często mówimy wtedy, że „świat nie jest czarno-biały". A przecież czarny i biały istnieją. Widzimy je. Skąd więc to poczucie, że coś się nie zgadza? Być może problem nie leży w samych kolorach, ale w liczbie wymiarów, którymi próbujemy opisać to, co widzimy.</p>
+        
+        <h3>Analogia</h3>
+        
+        <p>Dlatego pomocna staje się analogia zejścia do niższego wymiaru. Trójwymiarowy obiekt obserwowany z perspektywy dwuwymiarowej może wyglądać zupełnie różnie. W zależności od kąta „rzutu" może sprawiać wrażenie, że jest innym obiektem, że się zmienia, że przechodzi z jednej formy w drugą. Tymczasem z perspektywy pełnego trójwymiaru nic się nie zmienia — to wciąż ten sam obiekt, oglądany jedynie z różnych, ograniczonych punktów widzenia.</p>
+        
+        <p>I to prowadzi do pytania, które trudno zignorować.</p>
+        
+        <h3>Pytania</h3>
+        
+        <p>Skoro mamy namacalny dowód na to, że obiekt trójwymiarowy, widziany w dwóch wymiarach, może wyglądać skrajnie różnie — do tego stopnia, że sprawia wrażenie zupełnie innych, niepowiązanych ze sobą form — to co, jeśli wymiarów istnieje znacznie więcej?</p>
+        
+        <p>Co, jeśli to, co postrzegamy jako sprzeczne, niezgodne albo wzajemnie się wykluczające, jest jedynie efektem patrzenia na coś znacznie bogatszego z bardzo wąskiego wycinka?</p>
+        
+        <p>Co, jeśli nasze „różne prawdy" są po prostu różnymi projekcjami tej samej całości?</p>
+        
+        <p>A co, jeśli my sami — tak pewni tego, co widzimy — po prostu nie jesteśmy w stanie widzieć wystarczająco szeroko?</p>
+    </div>
+
+    <!-- Discovery Modals -->
+    <div id="rectangle-modal" class="discovery-modal">
+        <div class="shape-icon">▭</div>
+        <h2>PROSTOKĄT</h2>
+        <p>Przed tobą trójwymiarowy walec. Ale dla dwuwymiarowej istoty żyjącej w płaszczyźnie ściany, ten walec nie istnieje.</p>
+        <p>Ona widzi tylko <strong>prostokąt</strong> — dwuwymiarową emanację trójwymiarowego obiektu.</p>
+        <p>Dla niej to nie jest „cień" ani „projekcja". To jest kompletny, rzeczywisty obiekt. Prostokąt ma długość, szerokość, kraw
+
+ędzie. Ma wszystko, co można zmierzyć w jej dwuwymiarowym świecie.</p>
+        <p>Nie widzi głębi. Nie widzi zakrzywienia. Nie wie, że jest coś więcej.</p>
+        <p><strong>Spróbuj znaleźć inny kształt.</strong> Obróć walec i zobacz, co się stanie.</p>
+        <button class="modal-ok-btn">OK</button>
+    </div>
+
+    <div id="circle-modal" class="discovery-modal">
+        <div class="shape-icon">●</div>
+        <h2>KOŁO</h2>
+        <p>Ten sam trójwymiarowy walec. Ale teraz dwuwymiarowa istota widzi <strong>koło</strong>.</p>
+        <p>Wyobraź sobie jej zdumienie. Jeszcze przed chwilą widziała prostokąt — kształt z prostymi krawędziami. Teraz widzi idealnie okrągły obiekt, bez żadnych kątów.</p>
+        <p>Mogłaby powiedzieć: „Prostokąt absolutnie nie jest kołem" — i miałaby rację. Z jej dwuwymiarowej perspektywy to są całkowicie różne, niepowiązane ze sobą obiekty.</p>
+        <p>A jednak my widzimy prawdę: <strong>to ten sam walec</strong>. Po prostu się obrócił. Prostokąt i koło to różne projekcje tego samego, trójwymiarowego obiektu.</p>
+        <p>Teraz zastanów się: co, jeśli <em>ty</em> jesteś jak ta dwuwymiarowa istota?</p>
+        <p>Co, jeśli rzeczy, które wydają ci się sprzeczne, wykluczające się nawzajem, niepowiązane — są po prostu różnymi projekcjami czegoś większego, czego nie potrafisz zobaczyć w całości?</p>
+        <p>Co, jeśli wymiarów jest więcej niż trzy?</p>
+        <button class="modal-ok-btn">OK</button>
+    </div>
+
+    <!-- Status Indicator -->
+    <div id="status-indicator">
+        <div class="label">Aktualna projekcja dwuwymiarowa</div>
+        <div class="current-shape">—</div>
+        <div class="progress">Odkryto: <span id="discovered-count">0</span>/2</div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+        <strong>Eksperyment:</strong><br>
+        Obracaj walec i obserwuj jego cień na ścianie.<br>
+        <small style="margin-top: 0.5rem; display: block; opacity: 0.7;">Poszukaj różnych kształtów dwuwymiarowej emanacji</small>
+    </div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // State
+        let scene, camera, renderer;
+        let cylinder, shadowWall, light, lightHelper;
+        let currentShadowShape = 'unknown';
+        let discoveredShapes = new Set();
+        let isDraggingCylinder = false;
+        let isDraggingLight = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let isAnimating = false;
+        let currentModal = null;
+
+        // Camera animation state
+        const cameraStartPos = { x: 3, y: 2.5, z: 9 }; // Adjusted to see cylinder on side + shadow
+        const cameraStartLookAt = { x: -0.5, y: 2, z: -1 }; // Looking between cylinder and wall
+
+        function init() {
+            try {
+                // Scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0d0d0d);
+                scene.fog = new THREE.Fog(0x0d0d0d, 10, 30);
+
+                // Camera - positioned at angle to see wall, shadow and cylinder clearly
+                camera = new THREE.PerspectiveCamera(
+                    55,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                camera.position.set(cameraStartPos.x, cameraStartPos.y, cameraStartPos.z);
+                camera.lookAt(cameraStartLookAt.x, cameraStartLookAt.y, cameraStartLookAt.z);
+
+                // Renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                const container = document.getElementById('canvas-container');
+                container.appendChild(renderer.domElement);
+
+                // Cylinder
+                const cylinderGeometry = new THREE.CylinderGeometry(0.7, 0.7, 2.5, 32);
+                const cylinderMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x6fa3ef,
+                    metalness: 0.4,
+                    roughness: 0.3,
+                    emissive: 0x1a3a5a,
+                    emissiveIntensity: 0.2
+                });
+                cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+                cylinder.castShadow = true;
+                cylinder.position.set(-1.5, 1.5, 1); // Moved to the side so shadow is visible
+                // Initial rotation - 45 degrees to wall (neither circle nor rectangle)
+                cylinder.rotation.x = Math.PI / 4; // 45 degrees tilt
+                cylinder.rotation.z = 0.3; // slight Z rotation
+                scene.add(cylinder);
+
+                // Shadow wall
+                const wallGeometry = new THREE.PlaneGeometry(14, 10);
+                const wallMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x1a1a1a,
+                    roughness: 0.95,
+                    metalness: 0.05
+                });
+                shadowWall = new THREE.Mesh(wallGeometry, wallMaterial);
+                shadowWall.receiveShadow = true;
+                shadowWall.position.set(0, 2.5, -4);
+                scene.add(shadowWall);
+
+                // Subtle wall border
+                const borderGeometry = new THREE.EdgesGeometry(wallGeometry);
+                const borderMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x333333,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+                border.position.copy(shadowWall.position);
+                scene.add(border);
+
+                // Ground
+                const groundGeometry = new THREE.PlaneGeometry(30, 30);
+                const groundMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x0a0a0a,
+                    roughness: 0.9
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                ground.position.y = -0.5;
+                scene.add(ground);
+
+                // Grid helper (subtle)
+                const gridHelper = new THREE.GridHelper(30, 30, 0x222222, 0x111111);
+                gridHelper.position.y = -0.49;
+                scene.add(gridHelper);
+
+                // Main directional light - configured to light ONLY the wall area
+                light = new THREE.DirectionalLight(0xffffff, 2.5);
+                light.position.set(0, 2, 8); // Directly in front, pointing at wall
+                light.target.position.set(0, 2, -4); // Target the wall
+                scene.add(light.target);
+                light.castShadow = true;
+                light.shadow.mapSize.width = 2048;
+                light.shadow.mapSize.height = 2048;
+                light.shadow.camera.near = 1;
+                light.shadow.camera.far = 15;
+                light.shadow.camera.left = -5;
+                light.shadow.camera.right = 5;
+                light.shadow.camera.top = 6;
+                light.shadow.camera.bottom = -2;
+                scene.add(light);
+
+                // Light helper - invisible
+                const helperGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+                const helperMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff99,
+                    transparent: true,
+                    opacity: 0
+                });
+                lightHelper = new THREE.Mesh(helperGeometry, helperMaterial);
+                lightHelper.position.copy(light.position);
+                scene.add(lightHelper);
+
+                // Soft ambient light
+                const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
+                scene.add(ambientLight);
+
+                // Rim light for cylinder - NO SHADOW!
+                const rimLight = new THREE.DirectionalLight(0x6fa3ef, 0.5);
+                rimLight.position.set(-3, 2, -3);
+                rimLight.castShadow = false; // IMPORTANT: no second shadow!
+                scene.add(rimLight);
+
+                // Events
+                window.addEventListener('resize', onWindowResize);
+                renderer.domElement.addEventListener('mousedown', onMouseDown);
+                renderer.domElement.addEventListener('mousemove', onMouseMove);
+                renderer.domElement.addEventListener('mouseup', onMouseUp);
+                renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+                renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+                renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+                renderer.domElement.addEventListener('touchend', onTouchEnd);
+                renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+                animate();
+                console.log('Scene initialized successfully');
+            } catch (error) {
+                console.error('Error initializing scene:', error);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            analyzeShadowShape();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseDown(event) {
+            if (isAnimating) return;
+            if (event.button === 0) {
+                isDraggingCylinder = true;
+            } else if (event.button === 2) {
+                isDraggingLight = true;
+                event.preventDefault();
+            }
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        }
+
+        function onMouseMove(event) {
+            if (isAnimating) return;
+            if (!isDraggingCylinder && !isDraggingLight) return;
+
+            const deltaMove = {
+                x: event.clientX - previousMousePosition.x,
+                y: event.clientY - previousMousePosition.y
+            };
+
+            if (isDraggingCylinder) {
+                cylinder.rotation.z += deltaMove.x * 0.01;
+                cylinder.rotation.x += deltaMove.y * 0.01;
+            } else if (isDraggingLight) {
+                light.position.x += deltaMove.x * 0.02;
+                light.position.y -= deltaMove.y * 0.02;
+                light.position.y = Math.max(1, Math.min(12, light.position.y));
+                lightHelper.position.copy(light.position);
+                // Update target to maintain direction towards wall
+                light.target.position.x = light.position.x * 0.3;
+            }
+
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        }
+
+        function onMouseUp(event) {
+            isDraggingCylinder = false;
+            isDraggingLight = false;
+        }
+
+        function onWheel(event) {
+            if (isAnimating) return;
+            event.preventDefault();
+            const delta = event.deltaY * 0.01;
+            camera.position.z += delta;
+            camera.position.z = Math.max(5, Math.min(20, camera.position.z));
+        }
+
+        function onTouchStart(event) {
+            if (isAnimating || event.touches.length !== 1) return;
+            isDraggingCylinder = true;
+            previousMousePosition = {
+                x: event.touches[0].clientX,
+                y: event.touches[0].clientY
+            };
+        }
+
+        function onTouchMove(event) {
+            if (isAnimating || !isDraggingCylinder || event.touches.length !== 1) return;
+
+            const deltaMove = {
+                x: event.touches[0].clientX - previousMousePosition.x,
+                y: event.touches[0].clientY - previousMousePosition.y
+            };
+
+            cylinder.rotation.z += deltaMove.x * 0.01;
+            cylinder.rotation.x += deltaMove.y * 0.01;
+
+            previousMousePosition = {
+                x: event.touches[0].clientX,
+                y: event.touches[0].clientY
+            };
+        }
+
+        function onTouchEnd(event) {
+            isDraggingCylinder = false;
+        }
+
+        function analyzeShadowShape() {
+            // The shadow shape depends on cylinder orientation relative to THE WALL, not the light!
+            // Wall is at z=-4 with normal pointing towards +Z (0, 0, 1)
+            const wallNormal = new THREE.Vector3(0, 0, 1);
+            
+            // Get cylinder's main axis (Y-axis in local space)
+            const cylinderAxis = new THREE.Vector3(0, 1, 0);
+            cylinderAxis.applyQuaternion(cylinder.quaternion);
+
+            // Calculate angle between cylinder axis and wall normal
+            const dotProduct = Math.abs(cylinderAxis.dot(wallNormal));
+            const angle = Math.acos(Math.min(1, dotProduct));
+            const angleDeg = angle * (180 / Math.PI);
+
+            let newShape = 'unknown';
+
+            // CIRCLE: cylinder axis NEARLY PERFECTLY perpendicular to wall
+            // Requires EXTREME precision - less than 3 degrees deviation for perfect circle
+            if (angleDeg < 3) {
+                newShape = 'circle';
+            }
+            // RECTANGLE: cylinder axis NEARLY PERFECTLY parallel to wall
+            // Requires EXTREME precision - very narrow range around 90 degrees
+            else if (angleDeg > 87 && angleDeg < 93) {
+                newShape = 'rectangle';
+            }
+            // Everything else (including near-misses and ellipses) is neutral (no detection)
+
+            if (newShape !== currentShadowShape && newShape !== 'unknown') {
+                currentShadowShape = newShape;
+                updateStatusIndicator(newShape);
+
+                if (!discoveredShapes.has(newShape)) {
+                    discoveredShapes.add(newShape);
+                    document.getElementById('discovered-count').textContent = discoveredShapes.size;
+                    
+                    setTimeout(() => {
+                        animateCameraToShadow(newShape);
+                    }, 300);
+                }
+            }
+        }
+
+        function updateStatusIndicator(shape) {
+            const shapeLabel = document.querySelector('#status-indicator .current-shape');
+            const shapeNames = {
+                'rectangle': 'PROSTOKĄT',
+                'circle': 'KOŁO'
+            };
+            shapeLabel.textContent = shapeNames[shape] || '—';
+        }
+
+        function animateCameraToShadow(shape) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            // Target position - focusing on the shadow on the wall
+            const targetPos = {
+                rectangle: { x: 0.5, y: 2.5, z: 2 },
+                circle: { x: 1, y: 3, z: 2.5 }
+            };
+
+            const target = targetPos[shape];
+            const startPos = { ...camera.position };
+            const duration = 1500;
+            const startTime = Date.now();
+
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            }
+
+            function animateCamera() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = easeInOutCubic(progress);
+
+                camera.position.x = startPos.x + (target.x - startPos.x) * eased;
+                camera.position.y = startPos.y + (target.y - startPos.y) * eased;
+                camera.position.z = startPos.z + (target.z - startPos.z) * eased;
+
+                // Look at the shadow on the wall
+                camera.lookAt(0, 2.5, -4);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateCamera);
+                } else {
+                    showDiscoveryModal(shape);
+                }
+            }
+
+            animateCamera();
+        }
+
+        function showDiscoveryModal(shape) {
+            const modals = {
+                'rectangle': 'rectangle-modal',
+                'circle': 'circle-modal'
+            };
+
+            currentModal = document.getElementById(modals[shape]);
+            if (currentModal) {
+                currentModal.classList.add('visible');
+                document.getElementById('modal-overlay').classList.add('visible');
+            }
+        }
+
+        function closeCurrentModal() {
+            if (currentModal) {
+                currentModal.classList.remove('visible');
+                document.getElementById('modal-overlay').classList.remove('visible');
+                currentModal = null;
+                
+                // Return camera to starting position
+                returnCameraToStart();
+            }
+        }
+
+        function returnCameraToStart() {
+            const startPos = { ...camera.position };
+            const duration = 1000;
+            const startTime = Date.now();
+
+            function easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            }
+
+            function animateReturn() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = easeInOutCubic(progress);
+
+                camera.position.x = startPos.x + (cameraStartPos.x - startPos.x) * eased;
+                camera.position.y = startPos.y + (cameraStartPos.y - startPos.y) * eased;
+                camera.position.z = startPos.z + (cameraStartPos.z - startPos.z) * eased;
+
+                const lookAtProgress = {
+                    x: cameraStartLookAt.x * eased,
+                    y: 2.5 + (cameraStartLookAt.y - 2.5) * eased,
+                    z: -4 + (cameraStartLookAt.z - (-4)) * eased
+                };
+                camera.lookAt(lookAtProgress.x, lookAtProgress.y, lookAtProgress.z);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateReturn);
+                } else {
+                    isAnimating = false;
+                    // Complete modal removed - user can reflect on their own
+                }
+            }
+
+            animateReturn();
+        }
+
+        // UI Setup
+        function setupUI() {
+            // Intro screen
+            const introScreen = document.getElementById('intro-screen');
+            const startIntro = () => {
+                introScreen.classList.add('hidden');
+                setTimeout(() => {
+                    document.getElementById('status-indicator').classList.add('visible');
+                    document.getElementById('instructions').classList.add('visible');
+                }, 500);
+            };
+
+            introScreen.addEventListener('click', startIntro);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !introScreen.classList.contains('hidden')) {
+                    startIntro();
+                }
+            });
+
+            // Sidebar
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebarClose = sidebar.querySelector('.close-btn');
+
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.add('open');
+            });
+
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+            });
+
+            // ESC and Enter for modals
+            document.addEventListener('keydown', (e) => {
+                if ((e.key === 'Escape' || e.key === 'Enter') && currentModal) {
+                    closeCurrentModal();
+                } else if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                }
+            });
+
+            // OK button clicks
+            document.querySelectorAll('.modal-ok-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeCurrentModal();
+                });
+            });
+
+            // Click overlay to close modal
+            document.getElementById('modal-overlay').addEventListener('click', () => {
+                closeCurrentModal();
+            });
+        }
+
+        // Initialize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setupUI();
+                init();
+            });
+        } else {
+            setupUI();
+            init();
+        }
+    </script>
+</body>
+</html>

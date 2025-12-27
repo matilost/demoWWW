@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Myśli - Immersive Reader</title>
+    <style>
+        /* ========== RESET & BASE ========== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0a0e16;
+            --bg-secondary: #151922;
+            --bg-elevated: #1f2530;
+            --text-primary: #e8eaed;
+            --text-secondary: #9ba1a9;
+            --text-tertiary: #6b7280;
+            --accent-1: #6366f1;
+            --accent-2: #8b5cf6;
+            --accent-3: #ec4899;
+            --accent-4: #10b981;
+            --accent-5: #f59e0b;
+            --line-color: rgba(99, 102, 241, 0.3);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
+            --transition: cubic-bezier(0.4, 0.0, 0.2, 1);
+            --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow: hidden;
+        }
+
+        /* ========== ANIMATED BACKGROUND ========== */
+        .bg-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-gradient {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15), transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.12), transparent 40%),
+                radial-gradient(circle at 40% 80%, rgba(236, 72, 153, 0.1), transparent 40%);
+            animation: gradientMove 25s ease-in-out infinite;
+        }
+
+        @keyframes gradientMove {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-5%, -5%) rotate(120deg); }
+            66% { transform: translate(5%, 5%) rotate(240deg); }
+        }
+
+        .bg-grain {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        .particles-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.4;
+        }
+
+        /* ========== INTRO SCREEN ========== */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1f2e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 1s var(--transition), transform 1s var(--transition);
+        }
+
+        #intro-screen.hidden {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        .intro-title {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-3));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: fadeInUp 1s var(--spring);
+        }
+
+        .intro-subtitle {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s var(--spring) 0.2s backwards;
+        }
+
+        .enter-btn {
+            padding: 1.25rem 3rem;
+            font-size: 1.125rem;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s var(--spring);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+            animation: fadeInUp 1s var(--spring) 0.4s backwards;
+        }
+
+        .enter-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.6);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ========== HEADER UI ========== */
+        .main-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            background: rgba(10, 14, 22, 0.6);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-1);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ========== MAP VIEW ========== */
+        #map-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            transition: transform 0.3s var(--transition);
+        }
+
+        #map-container:active {
+            cursor: grabbing;
+        }
+
+        .map-node {
+            position: absolute;
+            width: 280px;
+            transform-origin: center;
+            transition: transform 0.4s var(--spring), z-index 0s;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .map-node.active {
+            z-index: 100 !important;
+        }
+
+        .map-node:hover {
+            transform: scale(1.05) translateY(-5px);
+            z-index: 50;
+        }
+
+        .node-card {
+            background: rgba(31, 37, 48, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            box-shadow: var(--shadow);
+            transition: all 0.4s var(--spring);
+        }
+
+        .map-node:hover .node-card {
+            border-color: var(--accent-1);
+            box-shadow: var(--shadow-lg), 0 0 40px rgba(99, 102, 241, 0.3);
+        }
+
+        .node-image {
+            width: 100%;
+            height: 180px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+        }
+
+        .node-svg {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s var(--spring);
+        }
+
+        .map-node:hover .node-svg {
+            transform: scale(1.1);
+        }
+
+        .node-content {
+            padding: 1.5rem;
+        }
+
+        .node-tag {
+            display: inline-block;
+            padding: 0.375rem 0.875rem;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--accent-1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .node-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        .node-preview {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .node-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .read-time {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        .node-arrow {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent-1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+            transition: transform 0.3s var(--spring);
+        }
+
+        .map-node:hover .node-arrow {
+            transform: translateX(4px);
+        }
+
+        /* ========== EXPANDED NODE ========== */
+        .node-expanded {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            background: rgba(15, 19, 28, 0.95);
+            backdrop-filter: blur(30px);
+            border-radius: 24px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s var(--spring);
+            z-index: 2000;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .node-expanded.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: all;
+        }
+
+        .expanded-header {
+            position: relative;
+            height: 300px;
+            overflow: hidden;
+        }
+
+        .expanded-image {
+            width: 100%;
+            height: 100%;
+        }
+
+        .expanded-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 2rem;
+            background: linear-gradient(to top, rgba(10, 14, 22, 0.95), transparent);
+        }
+
+        .expanded-tag {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            color: var(--accent-1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .expanded-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .expanded-preview {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .expanded-body {
+            padding: 2rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .expanded-sections {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-preview {
+            padding: 1.25rem;
+            background: rgba(31, 37, 48, 0.4);
+            border-radius: 12px;
+            border-left: 3px solid var(--accent-1);
+            transition: all 0.3s var(--transition);
+        }
+
+        .section-preview:hover {
+            background: rgba(31, 37, 48, 0.6);
+            transform: translateX(4px);
+        }
+
+        .section-preview h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .section-preview p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .expanded-actions {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+            background: rgba(10, 14, 22, 0.5);
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s var(--spring);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn-secondary {
+            background: rgba(31, 37, 48, 0.6);
+            color: var(--text-primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(31, 37, 48, 0.8);
+            border-color: var(--accent-1);
+        }
+
+        .close-expanded {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(10, 14, 22, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s var(--spring);
+            z-index: 10;
+        }
+
+        .close-expanded:hover {
+            background: rgba(236, 72, 153, 0.3);
+            border-color: var(--accent-3);
+            transform: rotate(90deg);
+        }
+
+        /* ========== CONNECTIONS ========== */
+        .connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ========== CONTROLS ========== */
+        .map-controls {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 100;
+        }
+
+        .control-btn {
+            width: 52px;
+            height: 52px;
+            border: none;
+            background: rgba(31, 37, 48, 0.8);
+            backdrop-filter: blur(20px);
+            color: var(--text-primary);
+            border-radius: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 300;
+            transition: all 0.3s var(--spring);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .control-btn:hover {
+            background: rgba(31, 37, 48, 1);
+            border-color: var(--accent-1);
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .control-btn:active {
+            transform: translateY(-2px) scale(0.98);
+        }
+
+        /* ========== MINIMAP ========== */
+        .minimap {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            width: 200px;
+            height: 150px;
+            background: rgba(31, 37, 48, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 1rem;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .minimap-title {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .minimap-canvas {
+            width: 100%;
+            height: calc(100% - 1.5rem);
+            border-radius: 8px;
+            background: rgba(10, 14, 22, 0.5);
+        }
+
+        /* ========== ARTICLE VIEW ========== */
+        #article-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-primary);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s var(--transition);
+            z-index: 5000;
+            overflow-y: auto;
+        }
+
+        #article-view.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .article-hero {
+            position: relative;
+            height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .hero-bg svg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 900px;
+            padding: 2rem;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            padding: 0.625rem 1.5rem;
+            background: rgba(99, 102, 241, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            font-size: 0.875rem;
+            color: var(--accent-1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-lead {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .article-body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .article-section {
+            margin-bottom: 4rem;
+        }
+
+        .article-section h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .article-section h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            width: 4px;
+            height: 2rem;
+            background: linear-gradient(to bottom, var(--accent-1), var(--accent-2));
+            border-radius: 2px;
+        }
+
+        .article-section p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            line-height: 1.9;
+            margin-bottom: 1.5rem;
+        }
+
+        .article-callout {
+            background: rgba(99, 102, 241, 0.08);
+            border-left: 4px solid var(--accent-1);
+            padding: 2rem;
+            margin: 3rem 0;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .article-callout::before {
+            content: '"';
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            font-size: 4rem;
+            color: var(--accent-1);
+            opacity: 0.2;
+            font-family: Georgia, serif;
+        }
+
+        .article-callout p {
+            position: relative;
+            font-size: 1.375rem;
+            font-style: italic;
+            color: var(--text-primary);
+            margin: 0;
+            padding-left: 2rem;
+        }
+
+        .article-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 5rem;
+            padding-top: 3rem;
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .nav-card {
+            padding: 2rem;
+            background: rgba(31, 37, 48, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            cursor: pointer;
+            transition: all 0.4s var(--spring);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s var(--spring);
+        }
+
+        .nav-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .nav-card:hover {
+            border-color: var(--accent-1);
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .nav-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent-1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-card p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .intro-title {
+                font-size: 2.5rem;
+            }
+
+            .intro-subtitle {
+                font-size: 1.125rem;
+            }
+
+            .main-header {
+                padding: 1rem;
+            }
+
+            .header-stats {
+                gap: 1rem;
+            }
+
+            .stat-value {
+                font-size: 1.25rem;
+            }
+
+            .map-node {
+                width: 240px;
+            }
+
+            .node-image {
+                height: 140px;
+            }
+
+            .minimap {
+                width: 150px;
+                height: 120px;
+                bottom: 1rem;
+                left: 1rem;
+            }
+
+            .map-controls {
+                bottom: 1rem;
+                right: 1rem;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-lead {
+                font-size: 1.125rem;
+            }
+
+            .article-body {
+                padding: 2rem 1.5rem;
+            }
+
+            .article-section h2 {
+                font-size: 1.5rem;
+            }
+
+            .article-section p {
+                font-size: 1.0625rem;
+            }
+
+            .node-expanded {
+                width: 95%;
+                max-height: 90vh;
+            }
+
+            .expanded-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* ========== FOCUS & ACCESSIBILITY ========== */
+        *:focus-visible {
+            outline: 2px solid var(--accent-1);
+            outline-offset: 4px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Layers -->
+    <div class="bg-layer">
+        <div class="bg-gradient"></div>
+        <canvas class="particles-canvas" id="particles"></canvas>
+        <div class="bg-grain"></div>
+    </div>
+
+    <!-- Intro Screen -->
+    <div id="intro-screen">
+        <h1 class="intro-title">Mapa Myśli</h1>
+        <p class="intro-subtitle">Interaktywna podróż przez połączone idee</p>
+        <button class="enter-btn" onclick="enterExperience()">Rozpocznij eksplorację</button>
+    </div>
+
+    <!-- Main Header -->
+    <header class="main-header">
+        <div class="logo">⚡ Mapa Myśli</div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="articles-count">5</div>
+                <div class="stat-label">Artykuły</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="connections-count">12</div>
+                <div class="stat-label">Połączenia</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="read-time">~35 min</div>
+                <div class="stat-label">Czytania</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Map View -->
+    <div id="map-view">
+        <svg class="connections-svg" id="connections"></svg>
+        <div id="map-container"></div>
+
+        <!-- Minimap -->
+        <div class="minimap">
+            <div class="minimap-title">Nawigacja</div>
+            <canvas class="minimap-canvas" id="minimap"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="map-controls">
+            <button class="control-btn" id="zoom-in" aria-label="Przybliż" title="Przybliż">+</button>
+            <button class="control-btn" id="zoom-out" aria-label="Oddal" title="Oddal">−</button>
+            <button class="control-btn" id="reset-view" aria-label="Zresetuj widok" title="Zresetuj">⟲</button>
+            <button class="control-btn" id="toggle-connections" aria-label="Połączenia" title="Pokaż/ukryj połączenia">⚡</button>
+        </div>
+    </div>
+
+    <!-- Expanded Node View -->
+    <div class="node-expanded" id="expanded-view">
+        <button class="close-expanded" onclick="closeExpanded()">×</button>
+        <div class="expanded-header">
+            <div class="expanded-image" id="expanded-image"></div>
+            <div class="expanded-overlay">
+                <span class="expanded-tag" id="expanded-tag"></span>
+                <h2 class="expanded-title" id="expanded-title"></h2>
+                <p class="expanded-preview" id="expanded-preview"></p>
+            </div>
+        </div>
+        <div class="expanded-body">
+            <div class="expanded-sections" id="expanded-sections"></div>
+        </div>
+        <div class="expanded-actions">
+            <button class="action-btn btn-secondary" onclick="closeExpanded()">
+                ← Powrót
+            </button>
+            <button class="action-btn btn-primary" onclick="readFullArticle()">
+                Czytaj pełny artykuł →
+            </button>
+        </div>
+    </div>
+
+    <!-- Article View -->
+    <div id="article-view">
+        <div class="article-hero">
+            <div class="hero-bg" id="hero-bg"></div>
+            <div class="hero-content">
+                <span class="hero-tag" id="article-tag"></span>
+                <h1 class="hero-title" id="article-title"></h1>
+                <p class="hero-lead" id="article-lead"></p>
+            </div>
+        </div>
+        <div class="article-body" id="article-body"></div>
+    </div>
+
+    <script>
+        // ========== DATA MODEL ==========
+        const articles = [
+            {
+                id: 'wielowymiarowosc',
+                title: 'Wielowymiarowość: intuicje i pęknięcia wyobraźni',
+                tag: 'metafizyka',
+                color: '#6366f1',
+                position: { x: 400, y: 300 },
+                lead: 'Jak myśleć o wymiarach poza trzema? Jakie intuicje mogą nas prowadzić, a jakie okazują się złudne? To podróż przez matematykę, fizykę i filozofię przestrzeni.',
+                preview: 'Eksploracja granic wyobraźni w kontekście wielowymiarowych przestrzeni i matematycznych abstrakcji.',
+                readTime: '8 min',
+                connections: ['notatnik-idei', 'mapa-jako-opowiesc'],
+                sections: [
+                    {
+                        title: 'Punkt jako świat',
+                        content: 'Wyobraź sobie istotę żyjącą na linii - jednym wymiarze. Dla niej „lewo" i „prawo" to cały wszechświat. Trudno jej pojąć, że my możemy spojrzeć na jej świat z góry, z drugiego wymiaru. Analogicznie, my żyjemy w trzech wymiarach i próbujemy zrozumieć czwarty, piąty... Matematyka pozwala nam to formalizować, ale czy naprawdę to rozumiemy?'
+                    },
+                    {
+                        title: 'Cienie wyższych wymiarów',
+                        content: 'Hipersześcian (tesserakt) rzutowany na płaszczyznę daje nam dziwny, niemożliwy kształt. To jak cień trójwymiarowego obiektu na ścianie - widzimy tylko projekcję. Nasze zmysły ograniczają nas do trzech wymiarów, ale matematyka i fizyka pokazują, że rzeczywistość może mieć więcej struktur.'
+                    },
+                    {
+                        title: 'Teoria strun i ukryte wymiary',
+                        content: 'W fizyce teoretycznej mówi się o 10 lub 11 wymiarach. Dodatkowe wymiary są „zwinięte" w skali Plancka - tak małej, że nie możemy ich zobaczyć. To fascynujące połączenie abstrakcji matematycznej z próbą opisu rzeczywistości.'
+                    },
+                    {
+                        title: 'Granice wyobraźni',
+                        content: 'Czy możemy naprawdę wyobrazić sobie czwarty wymiar przestrzenny? Prawdopodobnie nie w sposób wizualny. Ale możemy go zrozumieć przez analogie, modele matematyczne i abstrakcyjne myślenie. To pokazuje, że rozumienie nie zawsze wymaga wizualizacji.'
+                    }
+                ],
+                callout: 'Wielowymiarowość to nie tylko abstrakcja - to zaproszenie do myślenia poza granicami naszych zmysłów.',
+                nextArticle: 'notatnik-idei'
+            },
+            {
+                id: 'notatnik-idei',
+                title: 'Notatnik idei: jak rodzi się sens z chaosu',
+                tag: 'praktyka',
+                color: '#10b981',
+                position: { x: 800, y: 500 },
+                lead: 'Pomysły nie przychodzą w gotowej formie. Rodzą się w chaosie myśli, zapisków, przypadkowych skojarzeń. Jak z tego chaosu wydobyć strukturę i znaczenie?',
+                preview: 'Proces krystalizacji myśli przez systematyczne notowanie, łączenie i porządkowanie idei w sieć wiedzy.',
+                readTime: '7 min',
+                connections: ['mikrokosmos', 'sztuka-koncentracji'],
+                sections: [
+                    {
+                        title: 'Chaos jako punkt startowy',
+                        content: 'Dobry notatnik nie wymusza porządku. Pozwala na swobodny przepływ myśli, przypadkowe skojarzenia, niedokończone zdania. To przestrzeń eksperymentu, gdzie pomysły mogą się ze sobą zderzać bez konsekwencji.'
+                    },
+                    {
+                        title: 'Łączenie kropek',
+                        content: 'Sens pojawia się, gdy zaczynamy dostrzegać wzorce. Ta notatka z zeszłego tygodnia nagle rezonuje z tym, co przeczytałeś dziś rano. Dwie niezależne myśli okazują się częścią większej całości. To moment eureki.'
+                    },
+                    {
+                        title: 'System Zettelkasten',
+                        content: 'Niklas Luhmann stworzył system 90,000 połączonych notatek. Każda notatka to autonomiczna myśl, ale prawdziwa moc tkwi w linkach między nimi. To jak mapa myśli, która rośnie organicznie.'
+                    },
+                    {
+                        title: 'Cyfrowe vs analogowe',
+                        content: 'Papier ma swoją magię - spowolnia myślenie, angażuje inaczej mózg. Narzędzia cyfrowe dają elastyczność i możliwość szybkiego wyszukiwania. Najlepsze rozwiązanie? Hybrydowe podejście, gdzie każde medium służy do innego celu.'
+                    },
+                    {
+                        title: 'Rewizja jako odkrywanie',
+                        content: 'Wracanie do starych notatek to nie tylko przypominanie. To odkrywanie na nowo, z nową perspektywą. To, co kiedyś wydawało się błahe, teraz może być kluczem do rozwiązania obecnego problemu.'
+                    }
+                ],
+                callout: 'Najlepsze pomysły nie przychodzą gotowe - rosną z sieci połączeń między zapisanymi myślami.',
+                nextArticle: 'mikrokosmos'
+            },
+            {
+                id: 'mikrokosmos',
+                title: 'Mikrokosmos: opowieść o biurku, lampie i małym lesie',
+                tag: 'obraz',
+                color: '#f59e0b',
+                position: { x: 1200, y: 300 },
+                lead: 'Czasem cały świat mieści się w metrze kwadratowym. Historia o tym, jak małe przestrzenie mogą zawierać wielkie światy, jeśli tylko potrafimy w nie patrzeć.',
+                preview: 'Odkrywanie złożoności i piękna w codziennych, małych przestrzeniach przez zmianę skali percepcji.',
+                readTime: '6 min',
+                connections: ['sztuka-koncentracji', 'mapa-jako-opowiesc'],
+                sections: [
+                    {
+                        title: 'Topografia biurka',
+                        content: 'Moje biurko to krajobraz. Stos książek tworzy góry, kubek z kawą to jezioro, klawiatura to równina. Każdy przedmiot ma swoje miejsce, swoją historię, swój powód bycia właśnie tam. To nie bałagan - to ekosystem.'
+                    },
+                    {
+                        title: 'Lampa jako słońce',
+                        content: 'O zmierzchu, kiedy naturalnego światła ubywa, włączam lampę. To moment transformacji. Biurko staje się wyspą światła w ciemności, intymną przestrzenią odciętą od reszty świata. Lampa nie tylko oświetla - definiuje granice mojego mikrokosmosu.'
+                    },
+                    {
+                        title: 'Mały las grzybowy',
+                        content: 'W kącie biurka, w małym doniczce, rośnie coś, co nazwałem "lasem grzybowym". To terrarium z mchem i drobnymi roślinami. Kiedy je podlewam, obserwuję jak krople wody przemieszczają się przez mikroprzestrzeń. To przypomnienie, że skala jest relatywna - dla mrówki to byłby prawdziwy las.'
+                    },
+                    {
+                        title: 'Szczegóły jako bramy',
+                        content: 'Zwracanie uwagi na detale zmienia percepcję. Rysa na drewnianym blacie staje się rzeką, okruchy chleba od wczorajszej kolacji to głazy. Makrofotografia pokazała nam, że każdy przedmiot zawiera nieskończoną złożoność na mniejszych skalach.'
+                    }
+                ],
+                callout: 'Świat nie jest "tam na zewnątrz" - jest wszędzie, gdzie skierujemy uwagę i gotowość zobaczenia.',
+                nextArticle: 'sztuka-koncentracji'
+            },
+            {
+                id: 'sztuka-koncentracji',
+                title: 'Sztuka koncentracji: praca głęboka w świecie bodźców',
+                tag: 'psychologia',
+                color: '#8b5cf6',
+                position: { x: 600, y: 700 },
+                lead: 'Notyfikacje, wiadomości, nieskończone scrollowanie. Jak znaleźć wyspę skupienia w oceanie dystrakcji? O psychologii flow i architekturze uwagi.',
+                preview: 'Strategie i filozofia głębokiej pracy w epoce ciągłego rozproszenia i walki o uwagę.',
+                readTime: '9 min',
+                connections: ['mapa-jako-opowiesc', 'wielowymiarowosc'],
+                sections: [
+                    {
+                        title: 'Mit multitaskingu',
+                        content: 'Mózg nie pracuje równolegle - przeskakuje między zadaniami. Każde przełączenie kontekstu kosztuje czas i energię poznawczą. "Wielozadaniowość" to w rzeczywistości szybkie, seryjne przełączanie się - i jest niewiarygodnie nieefektywna.'
+                    },
+                    {
+                        title: 'Deep Work - praca głęboka',
+                        content: 'Cal Newport zdefiniował deep work jako zdolność do koncentracji bez rozpraszania na poznawczo wymagającym zadaniu. To rzadka i wartościowa umiejętność. Wymaga celowego wysiłku i odpowiedniego środowiska.'
+                    },
+                    {
+                        title: 'Rytuały i środowisko',
+                        content: 'Koncentracja nie pojawia się na zawołanie. Potrzebuje rytualnych przygotowań: wyłączenia powiadomień, uporządkowania przestrzeni, przygotowania herbaty. Te małe działania sygnalizują mózgowi: "teraz będziemy pracować głęboko".'
+                    },
+                    {
+                        title: 'Flow i jego warunki',
+                        content: 'Stan flow to całkowite zanurzenie w zadaniu. Mihaly Csikszentmihalyi pokazał, że wymaga on balansu: zadanie nie może być ani za łatwe (nuda), ani za trudne (frustracja). Musi być właśnie na granicy naszych możliwości.'
+                    },
+                    {
+                        title: 'Odpoczynek jako część pracy',
+                        content: 'Prawdziwa koncentracja nie może trwać non-stop. Mózg potrzebuje przerw, błądzenia myślami, nudy. To w tych momentach podświadomość przetwarza informacje i rodzi nowe połączenia.'
+                    }
+                ],
+                callout: 'Koncentracja to nie talent - to umiejętność, którą można trenować systematycznie każdego dnia.',
+                nextArticle: 'mapa-jako-opowiesc'
+            },
+            {
+                id: 'mapa-jako-opowiesc',
+                title: 'Mapa jako opowieść: dlaczego nawigacja to narracja',
+                tag: 'narracja',
+                color: '#ec4899',
+                position: { x: 1000, y: 700 },
+                lead: 'Każda mapa opowiada historię. O tym, co twórca uznał za ważne, co pominął, jak widzi świat. Nawigacja to nie tylko odnajdywanie drogi - to interpretacja przestrzeni i konstruowanie znaczenia.',
+                preview: 'Mapy jako narracyjne konstrukcje pełne wyborów, znaczeń i subiektywnych interpretacji rzeczywistości.',
+                readTime: '7 min',
+                connections: ['wielowymiarowosc', 'notatnik-idei'],
+                sections: [
+                    {
+                        title: 'Mapa nie jest terytorium',
+                        content: 'Alfred Korzybski przypomniał nam, że mapa to zawsze uproszczenie, interpretacja, wybór. Co pokazać, a co pominąć? Każda mapa zawiera w sobie punkt widzenia jej twórcy. Nie ma "obiektywnej" mapy - każda niesie narrację.'
+                    },
+                    {
+                        title: 'Mapy mentalne vs przestrzenne',
+                        content: 'Mapa myśli (mind map) to przestrzenna reprezentacja pojęć. Łączy wizualną intuicję z abstrakcyjnymi ideami. Pokazuje, że myślimy nie tylko liniowo - myślimy sieciowo, wielowymiarowo, z centralnym punktem i promieniującymi ścieżkami.'
+                    },
+                    {
+                        title: 'Nawigacja jako aktywny proces',
+                        content: 'Kiedy korzystamy z GPS, jesteśmy bierni - urządzenie mówi nam "skręć w lewo". Kiedy czytamy mapę papierową, aktywnie konstruujemy trasę, zapamiętujemy punkty orientacyjne, budujemy mentalny model przestrzeni. To różnica między byciem prowadzonym a byciem eksploratorem.'
+                    },
+                    {
+                        title: 'Interfejs jako mapa',
+                        content: 'Dobry interfejs cyfrowy działa jak mapa - pokazuje strukturę, relacje, możliwe ścieżki. Nawigacja przez aplikację to opowieść: gdzie jesteśmy, skąd przyszliśmy, dokąd możemy pójść. Design to architektura narracji.'
+                    },
+                    {
+                        title: 'Zagubienie jako odkrycie',
+                        content: 'Niektóre z najlepszych odkryć zdarzają się, gdy się zgubimy. Błądzenie pozwala odkrywać połączenia, które planowa trasa by pominęła. Serendipity wymaga odrobiny chaosu i gotowości na nieoczekiwane.'
+                    }
+                ],
+                callout: 'Każda mapa to opowieść o tym, jak rozumieć świat - przestrzenny lub pojęciowy.',
+                nextArticle: 'wielowymiarowosc'
+            }
+        ];
+
+        // ========== STATE ==========
+        let state = {
+            view: 'intro',
+            mapTransform: { x: 0, y: 0, scale: 1, targetScale: 1 },
+            isDragging: false,
+            dragStart: { x: 0, y: 0 },
+            expandedNode: null,
+            currentArticle: null,
+            showConnections: true,
+            animationFrame: null,
+            time: 0,
+            particles: []
+        };
+
+        // ========== PARTICLES SYSTEM ==========
+        function initParticles() {
+            const canvas = document.getElementById('particles');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            for (let i = 0; i < 50; i++) {
+                state.particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1,
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+            }
+
+            function animateParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                state.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(99, 102, 241, ${p.opacity})`;
+                    ctx.fill();
+
+                    // Draw connections
+                    state.particles.forEach(p2 => {
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < 150) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = `rgba(99, 102, 241, ${0.1 * (1 - dist / 150)})`;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                    });
+                });
+
+                requestAnimationFrame(animateParticles);
+            }
+
+            animateParticles();
+        }
+
+        // ========== INITIALIZATION ==========
+        function init() {
+            initParticles();
+            setupEventListeners();
+            renderMap();
+            animate();
+        }
+
+        function enterExperience() {
+            document.getElementById('intro-screen').classList.add('hidden');
+            state.view = 'map';
+            setTimeout(() => {
+                document.getElementById('intro-screen').style.display = 'none';
+            }, 1000);
+        }
+
+        // ========== MAP RENDERING ==========
+        function renderMap() {
+            const container = document.getElementById('map-container');
+            container.innerHTML = '';
+
+            articles.forEach((article, index) => {
+                const node = createNode(article, index);
+                container.appendChild(node);
+            });
+
+            renderConnections();
+            updateMinimap();
+        }
+
+        function createNode(article, index) {
+            const node = document.createElement('div');
+            node.className = 'map-node';
+            node.style.left = article.position.x + 'px';
+            node.style.top = article.position.y + 'px';
+            node.style.zIndex = 10 + index;
+            node.dataset.id = article.id;
+
+            const delay = index * 0.1;
+            node.style.animation = `fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}s backwards`;
+
+            node.innerHTML = `
+                <div class="node-card">
+                    <div class="node-image">
+                        ${generateNodeIllustration(article)}
+                    </div>
+                    <div class="node-content">
+                        <span class="node-tag">${article.tag}</span>
+                        <h3 class="node-title">${article.title}</h3>
+                        <p class="node-preview">${article.preview}</p>
+                        <div class="node-meta">
+                            <span class="read-time">⏱ ${article.readTime}</span>
+                            <div class="node-arrow">→</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            node.addEventListener('click', () => expandNode(article));
+
+            return node;
+        }
+
+        function generateNodeIllustration(article) {
+            const illustrations = {
+                'wielowymiarowosc': `
+                    <svg class="node-svg" viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad-${article.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:1">
+                                    <animate attributeName="stop-opacity" values="1;0.6;1" dur="3s" repeatCount="indefinite"/>
+                                </stop>
+                                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.6">
+                                    <animate attributeName="stop-opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite"/>
+                                </stop>
+                            </linearGradient>
+                            <filter id="glow-${article.id}">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <rect width="280" height="180" fill="url(#grad-${article.id})"/>
+                        <g transform="translate(140, 90)" filter="url(#glow-${article.id})">
+                            <!-- Tesseract -->
+                            <polygon points="-40,-20 0,-40 40,-20 0,0" fill="rgba(255,255,255,0.15)" stroke="#fff" stroke-width="1.5">
+                                <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="20s" repeatCount="indefinite"/>
+                            </polygon>
+                            <polygon points="-40,-20 -40,20 0,40 0,0" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1.5">
+                                <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="20s" repeatCount="indefinite"/>
+                            </polygon>
+                            <polygon points="40,-20 40,20 0,40 0,0" fill="rgba(255,255,255,0.12)" stroke="#fff" stroke-width="1.5">
+                                <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="20s" repeatCount="indefinite"/>
+                            </polygon>
+                            <polygon points="-20,-30 10,-45 50,-25 20,-10" fill="rgba(255,255,255,0.08)" stroke="#fff" stroke-width="1" opacity="0.6">
+                                <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="-360 0 0" dur="25s" repeatCount="indefinite"/>
+                            </polygon>
+                            <polygon points="-20,-30 -20,10 20,30 20,-10" fill="rgba(255,255,255,0.05)" stroke="#fff" stroke-width="1" opacity="0.6">
+                                <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="-360 0 0" dur="25s" repeatCount="indefinite"/>
+                            </polygon>
+                        </g>
+                    </svg>
+                `,
+                'notatnik-idei': `
+                    <svg class="node-svg" viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="grad-${article.id}">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#34d399;stop-opacity:0.6"/>
+                            </radialGradient>
+                        </defs>
+                        <rect width="280" height="180" fill="url(#grad-${article.id})"/>
+                        <g transform="translate(140, 90)">
+                            ${Array.from({length: 6}, (_, i) => {
+                                const angle = (i / 6) * Math.PI * 2;
+                                const x = Math.cos(angle) * 50;
+                                const y = Math.sin(angle) * 40;
+                                return `
+                                    <line x1="0" y1="0" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.4)" stroke-width="1.5">
+                                        <animate attributeName="stroke-opacity" values="0.4;0.8;0.4" dur="${2 + i * 0.3}s" repeatCount="indefinite"/>
+                                    </line>
+                                    <circle cx="${x}" cy="${y}" r="5" fill="#fff" opacity="0.9">
+                                        <animate attributeName="r" values="5;7;5" dur="${2 + i * 0.3}s" repeatCount="indefinite"/>
+                                    </circle>
+                                `;
+                            }).join('')}
+                            <circle cx="0" cy="0" r="8" fill="#fff" opacity="1">
+                                <animate attributeName="r" values="8;10;8" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                    </svg>
+                `,
+                'mikrokosmos': `
+                    <svg class="node-svg" viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad-${article.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.6"/>
+                            </linearGradient>
+                            <radialGradient id="light-${article.id}">
+                                <stop offset="0%" style="stop-color:#fff;stop-opacity:0.9"/>
+                                <stop offset="100%" style="stop-color:#fff;stop-opacity:0"/>
+                            </radialGradient>
+                        </defs>
+                        <rect width="280" height="180" fill="url(#grad-${article.id})"/>
+                        <circle cx="220" cy="40" r="35" fill="url(#light-${article.id})" opacity="0.7">
+                            <animate attributeName="r" values="35;40;35" dur="4s" repeatCount="indefinite"/>
+                            <animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite"/>
+                        </circle>
+                        <rect x="80" y="120" width="120" height="50" fill="rgba(139,92,246,0.15)" stroke="#fff" stroke-width="1.5" rx="4"/>
+                        ${[0, 1, 2, 3, 4].map(i => `
+                            <circle cx="${100 + i * 25}" cy="${110 - i * 5}" r="${3 + Math.random() * 2}" fill="#10b981" opacity="0.8">
+                                <animate attributeName="cy" values="${110 - i * 5};${105 - i * 5};${110 - i * 5}" dur="${3 + i * 0.4}s" repeatCount="indefinite"/>
+                            </circle>
+                        `).join('')}
+                    </svg>
+                `,
+                'sztuka-koncentracji': `
+                    <svg class="node-svg" viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad-${article.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.6"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="280" height="180" fill="url(#grad-${article.id})"/>
+                        <g transform="translate(140, 90)">
+                            ${[30, 45, 60, 75].map((r, i) => `
+                                <circle cx="0" cy="0" r="${r}" fill="none" stroke="#fff" stroke-width="2" opacity="${0.7 - i * 0.15}">
+                                    <animate attributeName="r" values="${r};${r + 5};${r}" dur="${3 + i * 0.5}s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="${0.7 - i * 0.15};${0.9 - i * 0.15};${0.7 - i * 0.15}" dur="${3 + i * 0.5}s" repeatCount="indefinite"/>
+                                </circle>
+                            `).join('')}
+                            <circle cx="0" cy="0" r="12" fill="#fff" opacity="1">
+                                <animate attributeName="r" values="12;15;12" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                    </svg>
+                `,
+                'mapa-jako-opowiesc': `
+                    <svg class="node-svg" viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad-${article.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:${article.color};stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#f472b6;stop-opacity:0.6"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="280" height="180" fill="url(#grad-${article.id})"/>
+                        <g>
+                            <path d="M 40 90 Q 90 60 140 90 T 240 90" stroke="#fff" stroke-width="3" fill="none" opacity="0.8" stroke-dasharray="5,5">
+                                <animate attributeName="stroke-dashoffset" from="0" to="10" dur="1s" repeatCount="indefinite"/>
+                            </path>
+                            ${[40, 140, 240].map((x, i) => `
+                                <circle cx="${x}" cy="90" r="6" fill="#fff">
+                                    <animate attributeName="r" values="6;8;6" dur="2s" begin="${i * 0.3}s" repeatCount="indefinite"/>
+                                </circle>
+                            `).join('')}
+                            <text x="40" y="110" fill="#fff" font-size="10" text-anchor="middle" opacity="0.8">Start</text>
+                            <text x="140" y="70" fill="#fff" font-size="10" text-anchor="middle" opacity="0.8">Węzeł</text>
+                            <text x="240" y="110" fill="#fff" font-size="10" text-anchor="middle" opacity="0.8">Cel</text>
+                        </g>
+                    </svg>
+                `
+            };
+
+            return illustrations[article.id] || '';
+        }
+
+        function renderConnections() {
+            const svg = document.getElementById('connections');
+            svg.innerHTML = '';
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+
+            if (!state.showConnections) return;
+
+            articles.forEach(article => {
+                article.connections.forEach(connId => {
+                    const targetArticle = articles.find(a => a.id === connId);
+                    if (!targetArticle) return;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const x1 = article.position.x + 140;
+                    const y1 = article.position.y + 90;
+                    const x2 = targetArticle.position.x + 140;
+                    const y2 = targetArticle.position.y + 90;
+
+                    const midX = (x1 + x2) / 2;
+                    const midY = (y1 + y2) / 2;
+                    const offset = 50;
+
+                    const d = `M ${x1} ${y1} Q ${midX} ${midY - offset} ${x2} ${y2}`;
+                    line.setAttribute('d', d);
+                    line.setAttribute('stroke', 'rgba(99, 102, 241, 0.2)');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('fill', 'none');
+                    line.setAttribute('stroke-dasharray', '5,5');
+
+                    const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+                    animate.setAttribute('attributeName', 'stroke-dashoffset');
+                    animate.setAttribute('from', '0');
+                    animate.setAttribute('to', '10');
+                    animate.setAttribute('dur', '1s');
+                    animate.setAttribute('repeatCount', 'indefinite');
+                    line.appendChild(animate);
+
+                    svg.appendChild(line);
+                });
+            });
+        }
+
+        // ========== EXPANDED NODE ==========
+        function expandNode(article) {
+            state.expandedNode = article;
+            const view = document.getElementById('expanded-view');
+
+            document.getElementById('expanded-tag').textContent = article.tag;
+            document.getElementById('expanded-title').textContent = article.title;
+            document.getElementById('expanded-preview').textContent = article.preview;
+            document.getElementById('expanded-image').innerHTML = generateExpandedIllustration(article);
+
+            const sectionsHtml = article.sections.map(section => `
+                <div class="section-preview">
+                    <h4>${section.title}</h4>
+                    <p>${section.content.substring(0, 150)}...</p>
+                </div>
+            `).join('');
+
+            document.getElementById('expanded-sections').innerHTML = sectionsHtml;
+
+            view.classList.add('visible');
+
+            // Mark node as active
+            document.querySelectorAll('.map-node').forEach(node => {
+                if (node.dataset.id === article.id) {
+                    node.classList.add('active');
+                }
+            });
+        }
+
+        function closeExpanded() {
+            document.getElementById('expanded-view').classList.remove('visible');
+            document.querySelectorAll('.map-node').forEach(node => {
+                node.classList.remove('active');
+            });
+            state.expandedNode = null;
+        }
+
+        function readFullArticle() {
+            if (!state.expandedNode) return;
+            showArticle(state.expandedNode);
+            closeExpanded();
+        }
+
+        function generateExpandedIllustration(article) {
+            // Similar to node illustration but larger and more detailed
+            return generateNodeIllustration(article).replace('280 180', '900 300').replace('node-svg', 'expanded-svg');
+        }
+
+        // ========== ARTICLE VIEW ==========
+        function showArticle(article) {
+            state.view = 'article';
+            state.currentArticle = article;
+
+            document.getElementById('article-tag').textContent = article.tag;
+            document.getElementById('article-title').textContent = article.title;
+            document.getElementById('article-lead').textContent = article.lead;
+            document.getElementById('hero-bg').innerHTML = generateHeroBackground(article);
+
+            const sectionsHtml = article.sections.map(section => `
+                <div class="article-section">
+                    <h2>${section.title}</h2>
+                    <p>${section.content}</p>
+                </div>
+            `).join('');
+
+            const nextArticle = articles.find(a => a.id === article.nextArticle);
+
+            document.getElementById('article-body').innerHTML = `
+                ${sectionsHtml}
+                <div class="article-callout">
+                    <p>${article.callout}</p>
+                </div>
+                <div class="article-nav">
+                    <div class="nav-card" onclick="backToMap()">
+                        <h3>← Powrót do mapy</h3>
+                        <p>Wróć do widoku wszystkich wątków myślowych</p>
+                    </div>
+                    ${nextArticle ? `
+                        <div class="nav-card" onclick="showArticle(articles.find(a => a.id === '${nextArticle.id}'))">
+                            <h3>Następny wątek →</h3>
+                            <p>${nextArticle.title}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            document.getElementById('article-view').classList.add('visible');
+            document.getElementById('map-view').style.display = 'none';
+        }
+
+        function backToMap() {
+            document.getElementById('article-view').classList.remove('visible');
+            setTimeout(() => {
+                document.getElementById('map-view').style.display = 'block';
+                state.view = 'map';
+            }, 300);
+        }
+
+        function generateHeroBackground(article) {
+            return generateNodeIllustration(article)
+                .replace('280 180', '100% 100%')
+                .replace('node-svg', 'hero-svg')
+                .replace('viewBox="0 0 280 180"', 'viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice"');
+        }
+
+        // ========== EVENT LISTENERS ==========
+        function setupEventListeners() {
+            const container = document.getElementById('map-container');
+
+            container.addEventListener('mousedown', handleDragStart);
+            container.addEventListener('mousemove', handleDragMove);
+            container.addEventListener('mouseup', handleDragEnd);
+            container.addEventListener('mouseleave', handleDragEnd);
+
+            container.addEventListener('touchstart', handleTouchStart, { passive: false });
+            container.addEventListener('touchmove', handleTouchMove, { passive: false });
+            container.addEventListener('touchend', handleDragEnd);
+
+            container.addEventListener('wheel', handleWheel, { passive: false });
+
+            document.getElementById('zoom-in').addEventListener('click', () => zoom(1.2));
+            document.getElementById('zoom-out').addEventListener('click', () => zoom(0.8));
+            document.getElementById('reset-view').addEventListener('click', resetView);
+            document.getElementById('toggle-connections').addEventListener('click', toggleConnections);
+
+            window.addEventListener('resize', handleResize);
+        }
+
+        function handleDragStart(e) {
+            if (e.target.closest('.map-node')) return;
+            state.isDragging = true;
+            state.dragStart = {
+                x: e.clientX - state.mapTransform.x,
+                y: e.clientY - state.mapTransform.y
+            };
+        }
+
+        function handleDragMove(e) {
+            if (!state.isDragging) return;
+            state.mapTransform.x = e.clientX - state.dragStart.x;
+            state.mapTransform.y = e.clientY - state.dragStart.y;
+            updateMapTransform();
+        }
+
+        function handleDragEnd() {
+            state.isDragging = false;
+        }
+
+        function handleTouchStart(e) {
+            if (e.touches.length === 1 && !e.target.closest('.map-node')) {
+                e.preventDefault();
+                state.isDragging = true;
+                state.dragStart = {
+                    x: e.touches[0].clientX - state.mapTransform.x,
+                    y: e.touches[0].clientY - state.mapTransform.y
+                };
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (!state.isDragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            state.mapTransform.x = e.touches[0].clientX - state.dragStart.x;
+            state.mapTransform.y = e.touches[0].clientY - state.dragStart.y;
+            updateMapTransform();
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            zoom(delta);
+        }
+
+        function handleResize() {
+            const canvas = document.getElementById('particles');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            updateMinimap();
+        }
+
+        function zoom(factor) {
+            state.mapTransform.targetScale = Math.max(0.5, Math.min(2, state.mapTransform.targetScale * factor));
+        }
+
+        function resetView() {
+            state.mapTransform = { x: 0, y: 0, scale: 1, targetScale: 1 };
+            updateMapTransform();
+        }
+
+        function toggleConnections() {
+            state.showConnections = !state.showConnections;
+            renderConnections();
+        }
+
+        function updateMapTransform() {
+            const container = document.getElementById('map-container');
+            container.style.transform = `translate(${state.mapTransform.x}px, ${state.mapTransform.y}px) scale(${state.mapTransform.scale})`;
+        }
+
+        // ========== MINIMAP ==========
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const scaleX = canvas.width / 1600;
+            const scaleY = canvas.height / 1000;
+
+            articles.forEach(article => {
+                ctx.beginPath();
+                ctx.arc(
+                    article.position.x * scaleX,
+                    article.position.y * scaleY,
+                    4,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fillStyle = article.color;
+                ctx.fill();
+            });
+        }
+
+        // ========== ANIMATION LOOP ==========
+        function animate() {
+            state.time += 0.016;
+
+            // Smooth scale
+            state.mapTransform.scale += (state.mapTransform.targetScale - state.mapTransform.scale) * 0.1;
+            updateMapTransform();
+
+            state.animationFrame = requestAnimationFrame(animate);
+        }
+
+        // ========== START ==========
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
