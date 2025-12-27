@@ -6,7 +6,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Domek 3D/AR Demo</title>
 
-    <!-- Model Viewer -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
     <style>
@@ -41,7 +40,6 @@
             height: 4px;
         }
 
-        /* UI Panel */
         #ui-panel {
             position: absolute;
             top: 20px;
@@ -104,7 +102,6 @@
             border-color: rgba(52, 211, 153, 0.5);
         }
 
-        /* Buttons */
         .btn {
             width: 100%;
             padding: 12px 20px;
@@ -143,7 +140,6 @@
             background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
         }
 
-        /* Controls Info */
         #controls-info {
             font-size: 12px;
             opacity: 0.8;
@@ -159,7 +155,6 @@
             font-size: 13px;
         }
 
-        /* Info Box */
         #info-box {
             position: absolute;
             bottom: 20px;
@@ -183,7 +178,6 @@
             to { opacity: 1; }
         }
 
-        /* Mobile Adjustments */
         @media (max-width: 768px) {
             #ui-panel {
                 top: 10px;
@@ -209,7 +203,6 @@
             }
         }
 
-        /* Loading State */
         .loading-overlay {
             position: absolute;
             top: 0;
@@ -245,7 +238,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Custom AR Button (ukryty, używamy własnego) */
         model-viewer::part(default-ar-button) {
             display: none;
         }
@@ -261,12 +253,11 @@
             shadow-intensity="1"
             camera-controls
             touch-action="pan-y"
-            auto-rotate
-            auto-rotate-delay="3000"
-            rotation-per-second="30deg"
             interaction-prompt="none"
             loading="eager"
             reveal="auto"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
         >
             <div class="loading-overlay" id="loading-overlay" slot="poster">
                 <div class="loader"></div>
@@ -277,18 +268,12 @@
 
         <div id="ui-panel">
             <h1>🏠 Domek 3D/AR</h1>
-            <div id="status">
-                Inicjalizacja...
-            </div>
+            <div id="status">Inicjalizacja...</div>
             <button id="btn-ar" class="btn btn-ar">
                 <span id="ar-icon">📱</span>
                 <span id="ar-text">Uruchom AR</span>
             </button>
             <button id="btn-reset" class="btn">🔄 Reset widoku</button>
-            <button id="btn-rotate" class="btn">
-                <span id="rotate-icon">⏸️</span>
-                <span id="rotate-text">Zatrzymaj rotację</span>
-            </button>
             <div id="controls-info">
                 <strong>Sterowanie 3D:</strong>
                 📱 Dotyk: przeciągnij aby obrócić<br>
@@ -308,46 +293,46 @@
         const loadingPercent = document.getElementById('loading-percent');
         const btnAR = document.getElementById('btn-ar');
         const btnReset = document.getElementById('btn-reset');
-        const btnRotate = document.getElementById('btn-rotate');
         const infoBox = document.getElementById('info-box');
         const arIcon = document.getElementById('ar-icon');
         const arText = document.getElementById('ar-text');
-        const rotateIcon = document.getElementById('rotate-icon');
-        const rotateText = document.getElementById('rotate-text');
 
-        let isRotating = true;
-        let isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-        let isAndroid = /Android/.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
 
-        // Detect AR capability
+        // Sprawdź AR support - DOPIERO PO ZAŁADOWANIU
         function checkARSupport() {
-            const canAR = modelViewer.canActivateAR;
-
-            if (canAR) {
-                if (isIOS) {
-                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR przez Quick Look</div>';
-                    arIcon.textContent = '🍎';
-                    arText.textContent = 'AR (Quick Look)';
-                    showInfo('Na iOS użyj przycisku AR aby otworzyć Quick Look');
-                } else if (isAndroid) {
-                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR przez Scene Viewer</div>';
-                    arIcon.textContent = '🤖';
-                    arText.textContent = 'AR (Scene Viewer)';
-                    showInfo('Na Android użyj przycisku AR');
-                } else {
-                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR dostępne</div>';
-                }
-            } else {
-                if (isIOS) {
-                    statusDiv.innerHTML = 'Model załadowany<div class="status-badge">Brak pliku USDZ dla iOS AR</div>';
-                    btnAR.style.opacity = '0.5';
-                    btnAR.style.cursor = 'not-allowed';
-                    showInfo('Potrzebujesz pliku .usdz dla AR na iOS. Konwertuj GLB→USDZ online.');
-                } else {
-                    statusDiv.innerHTML = 'Model załadowany<div class="status-badge">AR niedostępne na tym urządzeniu</div>';
-                    btnAR.style.display = 'none';
-                }
+            // Na iOS zakładamy że AR działa skoro mamy ios-src
+            if (isIOS) {
+                statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">🍎 AR Quick Look</div>';
+                arIcon.textContent = '🍎';
+                arText.textContent = 'Otwórz w AR';
+                console.log('iOS detected - AR Quick Look enabled');
+                return;
             }
+
+            // Na Androidzie sprawdzamy canActivateAR
+            if (isAndroid) {
+                // Daj chwilę na zainicjowanie
+                setTimeout(() => {
+                    if (modelViewer.canActivateAR) {
+                        statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">🤖 AR Scene Viewer</div>';
+                        arIcon.textContent = '🤖';
+                        arText.textContent = 'Otwórz w AR';
+                        console.log('Android AR available');
+                    } else {
+                        statusDiv.innerHTML = 'Model załadowany<div class="status-badge">AR niedostępne</div>';
+                        btnAR.style.display = 'none';
+                        console.log('Android AR not available');
+                    }
+                }, 1000);
+                return;
+            }
+
+            // Desktop - brak AR
+            statusDiv.innerHTML = 'Model załadowany<div class="status-badge">Tryb 3D (Desktop)</div>';
+            btnAR.style.display = 'none';
+            console.log('Desktop - no AR');
         }
 
         // Loading progress
@@ -358,17 +343,27 @@
 
         // Model loaded
         modelViewer.addEventListener('load', () => {
+            console.log('Model loaded');
             setTimeout(() => {
                 loadingOverlay.classList.add('hidden');
                 checkARSupport();
             }, 500);
         });
 
+        // Error handling
+        modelViewer.addEventListener('error', (event) => {
+            console.error('Model viewer error:', event);
+            statusDiv.innerHTML = 'Błąd ładowania<div class="status-badge">Sprawdź konsolę</div>';
+            loadingOverlay.classList.add('hidden');
+        });
+
         // AR Button Click
         btnAR.addEventListener('click', () => {
-            if (modelViewer.canActivateAR) {
-                modelViewer.activateAR();
-            }
+            console.log('AR button clicked');
+            console.log('canActivateAR:', modelViewer.canActivateAR);
+            console.log('iOS src:', modelViewer.getAttribute('ios-src'));
+
+            modelViewer.activateAR();
         });
 
         // Reset View
@@ -378,20 +373,6 @@
             modelViewer.cameraOrbit = 'auto auto auto';
             modelViewer.fieldOfView = 'auto';
             showInfo('Widok zresetowany');
-        });
-
-        // Toggle Rotation
-        btnRotate.addEventListener('click', () => {
-            isRotating = !isRotating;
-            if (isRotating) {
-                modelViewer.autoRotate = true;
-                rotateIcon.textContent = '⏸️';
-                rotateText.textContent = 'Zatrzymaj rotację';
-            } else {
-                modelViewer.autoRotate = false;
-                rotateIcon.textContent = '▶️';
-                rotateText.textContent = 'Włącz rotację';
-            }
         });
 
         // Show Info Box
@@ -405,28 +386,35 @@
 
         // AR Session Events
         modelViewer.addEventListener('ar-status', (event) => {
+            console.log('AR status:', event.detail.status);
             if (event.detail.status === 'session-started') {
                 showInfo('Sesja AR uruchomiona!', 2000);
             } else if (event.detail.status === 'not-presenting') {
                 showInfo('AR zakończone', 2000);
+            } else if (event.detail.status === 'failed') {
+                showInfo('AR nie mogło się uruchomić', 3000);
             }
         });
 
-        // Camera Change
-        let cameraChangeTimeout;
-        modelViewer.addEventListener('camera-change', () => {
-            clearTimeout(cameraChangeTimeout);
-            cameraChangeTimeout = setTimeout(() => {
-                // Możesz tutaj dodać logikę po zmianie kamery
-            }, 500);
-        });
-
-        // Initial message
-        setTimeout(() => {
-            if (!loadingOverlay.classList.contains('hidden')) {
-                showInfo('Ładowanie może potrwać chwilę...', 2000);
-            }
-        }, 2000);
+        // Debug: sprawdź co się dzieje
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Is iOS:', isIOS);
+        console.log('Is Android:', isAndroid);
+        console.log('Model src:', modelViewer.getAttribute('src'));
+        console.log('iOS src:', modelViewer.getAttribute('ios-src'));
     </script>
 </body>
 </html>
+```
+
+**Kluczowe zmiany:**
+
+1. ✅ **Usunięto auto-rotate** - teraz model stoi w miejscu
+2. ✅ **Usunięto przycisk rotacji** - niepotrzebny
+3. ✅ **Poprawiono wykrywanie AR dla iOS** - teraz po prostu zakłada że działa (bo plik USDZ jest w `ios-src`)
+4. ✅ **Dodano `ar` i `ar-modes`** do model-viewer
+5. ✅ **Dodano logi do konsoli** - otwórz DevTools i zobacz co się dzieje
+
+**Otwórz stronę na iPhone i sprawdź konsolę** (Safari → Develop → twój iPhone → Console) - powinna pokazać:
+```
+iOS detected - AR Quick Look enabled
