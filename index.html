@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Domek 3D/AR Demo</title>
+
+    <!-- Model Viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -17,6 +21,7 @@
             overflow: hidden;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
+            height: 100vh;
         }
 
         #container {
@@ -25,10 +30,15 @@
             position: relative;
         }
 
-        canvas {
-            display: block;
+        model-viewer {
             width: 100%;
             height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);
+        }
+
+        model-viewer::part(default-progress-bar) {
+            background-color: #667eea;
+            height: 4px;
         }
 
         /* UI Panel */
@@ -38,13 +48,16 @@
             left: 20px;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 20px;
             min-width: 280px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
             animation: slideIn 0.5s ease;
+            z-index: 10;
         }
 
         @keyframes slideIn {
@@ -61,7 +74,7 @@
         #ui-panel h1 {
             font-size: 24px;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -69,28 +82,26 @@
         }
 
         #status {
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 15px;
             opacity: 0.9;
-            min-height: 20px;
+            line-height: 1.4;
         }
 
-        /* Progress Bar */
-        #progress-container {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            display: none;
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.5);
         }
 
-        #progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            width: 0%;
-            transition: width 0.3s ease;
+        .status-badge.success {
+            background: rgba(52, 211, 153, 0.3);
+            border-color: rgba(52, 211, 153, 0.5);
         }
 
         /* Buttons */
@@ -100,29 +111,27 @@
             margin: 8px 0;
             border: none;
             border-radius: 10px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             background: rgba(255, 255, 255, 0.9);
             color: #667eea;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn:hover {
             background: rgba(255, 255, 255, 1);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
         }
 
         .btn:active {
             transform: translateY(0);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
         }
 
         .btn-ar {
@@ -137,34 +146,71 @@
         /* Controls Info */
         #controls-info {
             font-size: 12px;
-            opacity: 0.7;
+            opacity: 0.8;
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
+            line-height: 1.6;
         }
 
-        /* AR Instructions */
-        #ar-instructions {
+        #controls-info strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        /* Info Box */
+        #info-box {
             position: absolute;
-            bottom: 40px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 16px;
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 14px;
             display: none;
-            animation: pulse 2s infinite;
+            animation: fadeIn 0.5s ease;
+            z-index: 5;
+            max-width: 90%;
+            text-align: center;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.8; }
-            50% { opacity: 1; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        /* Loading Screen */
-        #loading-screen {
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            #ui-panel {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                min-width: auto;
+                max-width: none;
+                padding: 15px;
+            }
+
+            #ui-panel h1 {
+                font-size: 20px;
+            }
+
+            #controls-info {
+                font-size: 11px;
+            }
+
+            #info-box {
+                bottom: 15px;
+                font-size: 13px;
+                padding: 10px 20px;
+            }
+        }
+
+        /* Loading State */
+        .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -179,7 +225,7 @@
             transition: opacity 0.5s ease;
         }
 
-        #loading-screen.hidden {
+        .loading-overlay.hidden {
             opacity: 0;
             pointer-events: none;
         }
@@ -199,428 +245,188 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Mobile Adjustments */
-        @media (max-width: 768px) {
-            #ui-panel {
-                top: 10px;
-                left: 10px;
-                right: 10px;
-                min-width: auto;
-                padding: 15px;
-            }
-
-            #ui-panel h1 {
-                font-size: 20px;
-            }
-
-            #controls-info {
-                font-size: 11px;
-            }
-        }
-
-        /* Hide on AR */
-        body.ar-active #ui-panel {
-            opacity: 0;
-            pointer-events: none;
+        /* Custom AR Button (ukryty, używamy własnego) */
+        model-viewer::part(default-ar-button) {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="container"></div>
+    <div id="container">
+        <model-viewer
+            id="model-viewer"
+            src="./domek.glb"
+            ios-src="./domek.usdz"
+            alt="Domek 3D"
+            shadow-intensity="1"
+            camera-controls
+            touch-action="pan-y"
+            auto-rotate
+            auto-rotate-delay="3000"
+            rotation-per-second="30deg"
+            interaction-prompt="none"
+            loading="eager"
+            reveal="auto"
+        >
+            <div class="loading-overlay" id="loading-overlay" slot="poster">
+                <div class="loader"></div>
+                <div style="font-size: 18px; font-weight: 500;">Ładowanie modelu 3D...</div>
+                <div id="loading-percent" style="font-size: 14px; opacity: 0.8; margin-top: 10px;">0%</div>
+            </div>
+        </model-viewer>
 
-    <div id="loading-screen">
-        <div class="loader"></div>
-        <div style="font-size: 18px; font-weight: 500;">Ładowanie modelu 3D...</div>
-        <div id="loading-percent" style="font-size: 14px; opacity: 0.8; margin-top: 10px;">0%</div>
+        <div id="ui-panel">
+            <h1>🏠 Domek 3D/AR</h1>
+            <div id="status">
+                Inicjalizacja...
+            </div>
+            <button id="btn-ar" class="btn btn-ar">
+                <span id="ar-icon">📱</span>
+                <span id="ar-text">Uruchom AR</span>
+            </button>
+            <button id="btn-reset" class="btn">🔄 Reset widoku</button>
+            <button id="btn-rotate" class="btn">
+                <span id="rotate-icon">⏸️</span>
+                <span id="rotate-text">Zatrzymaj rotację</span>
+            </button>
+            <div id="controls-info">
+                <strong>Sterowanie 3D:</strong>
+                📱 Dotyk: przeciągnij aby obrócić<br>
+                🖱️ Mysz: przeciągnij aby obrócić<br>
+                🔍 Pinch/scroll: zoom<br>
+                ↔️ Dwa palce: przesuwanie
+            </div>
+        </div>
+
+        <div id="info-box"></div>
     </div>
 
-    <div id="ui-panel">
-        <h1>🏠 Domek 3D/AR</h1>
-        <div id="status">Inicjalizacja...</div>
-        <div id="progress-container">
-            <div id="progress-bar"></div>
-        </div>
-        <button id="btn-ar" class="btn btn-ar" disabled>Start AR</button>
-        <button id="btn-reset" class="btn">Reset kamery</button>
-        <div id="controls-info">
-            <strong>Sterowanie 3D:</strong><br>
-            🖱️ LPM: obrót<br>
-            🖱️ PPM: przesuwanie<br>
-            🖱️ Scroll: zoom
-        </div>
-    </div>
-
-    <div id="ar-instructions">Dotknij, aby umieścić domek</div>
-
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
-        }
-    }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // ===== GLOBAL STATE =====
-        let scene, camera, renderer, controls;
-        let model, modelBoundingBox;
-        let reticle, hitTestSource, hitTestSourceRequested = false;
-        let arSession = null;
-        let isARMode = false;
-        let placedModel = null;
-
-        // UI Elements
-        const container = document.getElementById('container');
+    <script>
+        const modelViewer = document.getElementById('model-viewer');
         const statusDiv = document.getElementById('status');
-        const loadingScreen = document.getElementById('loading-screen');
+        const loadingOverlay = document.getElementById('loading-overlay');
         const loadingPercent = document.getElementById('loading-percent');
         const btnAR = document.getElementById('btn-ar');
         const btnReset = document.getElementById('btn-reset');
-        const arInstructions = document.getElementById('ar-instructions');
+        const btnRotate = document.getElementById('btn-rotate');
+        const infoBox = document.getElementById('info-box');
+        const arIcon = document.getElementById('ar-icon');
+        const arText = document.getElementById('ar-text');
+        const rotateIcon = document.getElementById('rotate-icon');
+        const rotateText = document.getElementById('rotate-text');
 
-        // ===== INIT SCENE =====
-        function initScene() {
-            // Scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e);
-            scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+        let isRotating = true;
+        let isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        let isAndroid = /Android/.test(navigator.userAgent);
 
-            // Camera
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(5, 3, 5);
+        // Detect AR capability
+        function checkARSupport() {
+            const canAR = modelViewer.canActivateAR;
 
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.outputColorSpace = THREE.SRGBColorSpace;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
-            renderer.xr.enabled = true;
-            container.appendChild(renderer.domElement);
-
-            // Lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambientLight);
-
-            const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
-            keyLight.position.set(5, 8, 5);
-            keyLight.castShadow = true;
-            keyLight.shadow.mapSize.width = 2048;
-            keyLight.shadow.mapSize.height = 2048;
-            keyLight.shadow.camera.near = 0.5;
-            keyLight.shadow.camera.far = 50;
-            keyLight.shadow.camera.left = -10;
-            keyLight.shadow.camera.right = 10;
-            keyLight.shadow.camera.top = 10;
-            keyLight.shadow.camera.bottom = -10;
-            scene.add(keyLight);
-
-            const fillLight = new THREE.DirectionalLight(0x9090ff, 0.5);
-            fillLight.position.set(-5, 3, -5);
-            scene.add(fillLight);
-
-            const rimLight = new THREE.DirectionalLight(0xffaa88, 0.3);
-            rimLight.position.set(0, 2, -8);
-            scene.add(rimLight);
-
-            // Ground (tylko w trybie 3D)
-            const groundGeometry = new THREE.PlaneGeometry(50, 50);
-            const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            ground.rotation.x = -Math.PI / 2;
-            ground.receiveShadow = true;
-            ground.name = 'ground';
-            scene.add(ground);
-
-            // Controls
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.minDistance = 2;
-            controls.maxDistance = 20;
-            controls.maxPolarAngle = Math.PI / 2;
-            controls.target.set(0, 1, 0);
-
-            // Reticle dla AR
-            const reticleGeometry = new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2);
-            const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-            scene.add(reticle);
-
-            // Event Listeners
-            window.addEventListener('resize', onWindowResize);
-            btnAR.addEventListener('click', startAR);
-            btnReset.addEventListener('click', resetCamera);
-
-            // Load Model
-            loadModel();
-        }
-
-        // ===== LOAD MODEL =====
-        function loadModel() {
-            const loader = new GLTFLoader();
-
-            loader.load(
-                './domek.glb',
-                (gltf) => {
-                    model = gltf.scene;
-
-                    // Enable shadows
-                    model.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
-
-                    // Calculate bounding box
-                    modelBoundingBox = new THREE.Box3().setFromObject(model);
-                    const size = new THREE.Vector3();
-                    modelBoundingBox.getSize(size);
-
-                    // Center model
-                    const center = new THREE.Vector3();
-                    modelBoundingBox.getCenter(center);
-                    model.position.sub(center);
-                    model.position.y += size.y / 2;
-
-                    scene.add(model);
-
-                    // Auto-frame camera
-                    frameModel();
-
-                    // Hide loading screen
-                    setTimeout(() => {
-                        loadingScreen.classList.add('hidden');
-                        statusDiv.textContent = 'Model załadowany';
-                        checkARSupport();
-                    }, 500);
-                },
-                (progress) => {
-                    const percent = Math.round((progress.loaded / progress.total) * 100);
-                    loadingPercent.textContent = `${percent}%`;
-                },
-                (error) => {
-                    console.error('Błąd ładowania modelu:', error);
-                    statusDiv.textContent = 'Błąd ładowania modelu';
-                    loadingScreen.classList.add('hidden');
-                }
-            );
-        }
-
-        // ===== AUTO-FRAME CAMERA =====
-        function frameModel() {
-            if (!model) return;
-
-            const box = new THREE.Box3().setFromObject(model);
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const fov = camera.fov * (Math.PI / 180);
-            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-            cameraZ *= 2.5; // Padding
-
-            camera.position.set(cameraZ * 0.7, cameraZ * 0.5, cameraZ * 0.7);
-            camera.lookAt(center);
-            controls.target.copy(center);
-            controls.update();
-        }
-
-        // ===== RESET CAMERA =====
-        function resetCamera() {
-            frameModel();
-            statusDiv.textContent = 'Kamera zresetowana';
-        }
-
-        // ===== CHECK AR SUPPORT =====
-        async function checkARSupport() {
-            if ('xr' in navigator) {
-                try {
-                    const supported = await navigator.xr.isSessionSupported('immersive-ar');
-                    if (supported) {
-                        btnAR.disabled = false;
-                        statusDiv.textContent = 'AR dostępne! 🚀';
-                    } else {
-                        handleNoARSupport();
-                    }
-                } catch (e) {
-                    handleNoARSupport();
+            if (canAR) {
+                if (isIOS) {
+                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR przez Quick Look</div>';
+                    arIcon.textContent = '🍎';
+                    arText.textContent = 'AR (Quick Look)';
+                    showInfo('Na iOS użyj przycisku AR aby otworzyć Quick Look');
+                } else if (isAndroid) {
+                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR przez Scene Viewer</div>';
+                    arIcon.textContent = '🤖';
+                    arText.textContent = 'AR (Scene Viewer)';
+                    showInfo('Na Android użyj przycisku AR');
+                } else {
+                    statusDiv.innerHTML = 'Gotowe! 🎉<div class="status-badge success">AR dostępne</div>';
                 }
             } else {
-                handleNoARSupport();
-            }
-        }
-
-        function handleNoARSupport() {
-            // iOS Safari fallback
-            if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-                statusDiv.innerHTML = 'AR na iOS jest ograniczone w Safari<br>Użyj trybu 3D z dotykiem 👆';
-            } else {
-                statusDiv.textContent = 'AR niedostępne - używaj trybu 3D';
-            }
-            btnAR.style.display = 'none';
-        }
-
-        // ===== START AR =====
-        async function startAR() {
-            if (!navigator.xr) return;
-
-            try {
-                arSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.body }
-                });
-
-                await renderer.xr.setSession(arSession);
-                isARMode = true;
-                document.body.classList.add('ar-active');
-                arInstructions.style.display = 'block';
-
-                // Hide ground in AR
-                const ground = scene.getObjectByName('ground');
-                if (ground) ground.visible = false;
-
-                // Hide original model, will place new instance
-                if (model) model.visible = false;
-
-                arSession.addEventListener('end', onARSessionEnd);
-
-                // Setup hit test
-                arSession.requestReferenceSpace('viewer').then((refSpace) => {
-                    arSession.requestHitTestSource({ space: refSpace }).then((source) => {
-                        hitTestSource = source;
-                    });
-                });
-
-                // Touch to place
-                renderer.domElement.addEventListener('click', onARTouchPlace);
-
-            } catch (error) {
-                console.error('AR Error:', error);
-                statusDiv.textContent = 'Nie udało się uruchomić AR';
-            }
-        }
-
-        // ===== AR SESSION END =====
-        function onARSessionEnd() {
-            isARMode = false;
-            document.body.classList.remove('ar-active');
-            arInstructions.style.display = 'none';
-            hitTestSource = null;
-            hitTestSourceRequested = false;
-
-            // Restore ground
-            const ground = scene.getObjectByName('ground');
-            if (ground) ground.visible = true;
-
-            // Restore original model
-            if (model) model.visible = true;
-
-            // Remove placed model
-            if (placedModel) {
-                scene.remove(placedModel);
-                placedModel = null;
-            }
-
-            reticle.visible = false;
-            arSession = null;
-
-            statusDiv.textContent = 'AR zakończone';
-            renderer.domElement.removeEventListener('click', onARTouchPlace);
-        }
-
-        // ===== AR TOUCH PLACE =====
-        function onARTouchPlace() {
-            if (!reticle.visible || placedModel) return;
-
-            if (model && !placedModel) {
-                // Clone model
-                placedModel = model.clone();
-                placedModel.position.setFromMatrixPosition(reticle.matrix);
-                scene.add(placedModel);
-
-                // Add shadow plane under model
-                const shadowGeometry = new THREE.PlaneGeometry(2, 2);
-                const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
-                const shadowPlane = new THREE.Mesh(shadowGeometry, shadowMaterial);
-                shadowPlane.rotation.x = -Math.PI / 2;
-                shadowPlane.position.y = 0.001;
-                shadowPlane.receiveShadow = true;
-                placedModel.add(shadowPlane);
-
-                arInstructions.textContent = 'Obracaj palcem, pinch = skala';
-
-                // Enable rotation gesture (simplified)
-                let lastTouch = null;
-                renderer.domElement.addEventListener('touchmove', (e) => {
-                    if (e.touches.length === 1 && placedModel) {
-                        if (lastTouch) {
-                            const deltaX = e.touches[0].clientX - lastTouch.clientX;
-                            placedModel.rotation.y += deltaX * 0.01;
-                        }
-                        lastTouch = { clientX: e.touches[0].clientX };
-                    } else {
-                        lastTouch = null;
-                    }
-                });
-            }
-        }
-
-        // ===== WINDOW RESIZE =====
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // ===== ANIMATION LOOP =====
-        function animate() {
-            renderer.setAnimationLoop(render);
-        }
-
-        function render(timestamp, frame) {
-            // AR hit-test
-            if (frame && isARMode) {
-                if (hitTestSource && !placedModel) {
-                    const referenceSpace = renderer.xr.getReferenceSpace();
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
+                if (isIOS) {
+                    statusDiv.innerHTML = 'Model załadowany<div class="status-badge">Brak pliku USDZ dla iOS AR</div>';
+                    btnAR.style.opacity = '0.5';
+                    btnAR.style.cursor = 'not-allowed';
+                    showInfo('Potrzebujesz pliku .usdz dla AR na iOS. Konwertuj GLB→USDZ online.');
+                } else {
+                    statusDiv.innerHTML = 'Model załadowany<div class="status-badge">AR niedostępne na tym urządzeniu</div>';
+                    btnAR.style.display = 'none';
                 }
             }
-
-            if (!isARMode) {
-                controls.update();
-            }
-
-            renderer.render(scene, camera);
         }
 
-        // ===== START =====
-        initScene();
-        animate();
+        // Loading progress
+        modelViewer.addEventListener('progress', (event) => {
+            const progress = event.detail.totalProgress * 100;
+            loadingPercent.textContent = `${Math.round(progress)}%`;
+        });
+
+        // Model loaded
+        modelViewer.addEventListener('load', () => {
+            setTimeout(() => {
+                loadingOverlay.classList.add('hidden');
+                checkARSupport();
+            }, 500);
+        });
+
+        // AR Button Click
+        btnAR.addEventListener('click', () => {
+            if (modelViewer.canActivateAR) {
+                modelViewer.activateAR();
+            }
+        });
+
+        // Reset View
+        btnReset.addEventListener('click', () => {
+            modelViewer.resetTurntableRotation();
+            modelViewer.interpolationDecay = 100;
+            modelViewer.cameraOrbit = 'auto auto auto';
+            modelViewer.fieldOfView = 'auto';
+            showInfo('Widok zresetowany');
+        });
+
+        // Toggle Rotation
+        btnRotate.addEventListener('click', () => {
+            isRotating = !isRotating;
+            if (isRotating) {
+                modelViewer.autoRotate = true;
+                rotateIcon.textContent = '⏸️';
+                rotateText.textContent = 'Zatrzymaj rotację';
+            } else {
+                modelViewer.autoRotate = false;
+                rotateIcon.textContent = '▶️';
+                rotateText.textContent = 'Włącz rotację';
+            }
+        });
+
+        // Show Info Box
+        function showInfo(message, duration = 3000) {
+            infoBox.textContent = message;
+            infoBox.style.display = 'block';
+            setTimeout(() => {
+                infoBox.style.display = 'none';
+            }, duration);
+        }
+
+        // AR Session Events
+        modelViewer.addEventListener('ar-status', (event) => {
+            if (event.detail.status === 'session-started') {
+                showInfo('Sesja AR uruchomiona!', 2000);
+            } else if (event.detail.status === 'not-presenting') {
+                showInfo('AR zakończone', 2000);
+            }
+        });
+
+        // Camera Change
+        let cameraChangeTimeout;
+        modelViewer.addEventListener('camera-change', () => {
+            clearTimeout(cameraChangeTimeout);
+            cameraChangeTimeout = setTimeout(() => {
+                // Możesz tutaj dodać logikę po zmianie kamery
+            }, 500);
+        });
+
+        // Initial message
+        setTimeout(() => {
+            if (!loadingOverlay.classList.contains('hidden')) {
+                showInfo('Ładowanie może potrwać chwilę...', 2000);
+            }
+        }, 2000);
     </script>
 </body>
 </html>
